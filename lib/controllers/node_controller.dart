@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:shelf_plus/shelf_plus.dart';
+
 import 'package:kiss_repository/kiss_repository.dart';
+import 'package:shelf_plus/shelf_plus.dart';
+
 import '../models/node.dart';
 import '../services/node_service.dart';
 
@@ -11,12 +13,12 @@ class NodeController {
 
   void setupRoutes(RouterPlus app) {
     app.post('/nodes', _createNode);
-    app.get('/nodes/{id}', _getNode);
-    app.patch('/nodes/{id}', _updateNode);
-    app.delete('/nodes/{id}', _deleteNode);
-    app.get('/nodes/{id}/children', _getChildren);
-    app.get('/nodes/{id}/trace', _trace);
-    app.get('/nodes/spatial/{prefix}', _getSpatialNodes);
+    app.get('/nodes/<id>', _getNode);
+    app.patch('/nodes/<id>', _updateNode);
+    app.delete('/nodes/<id>', _deleteNode);
+    app.get('/nodes/<id>/children', _getChildren);
+    app.get('/nodes/<id>/trace', _trace);
+    app.get('/nodes/spatial/<prefix>', _getSpatialNodes);
   }
 
   Future<Response> _createNode(Request request) async {
@@ -24,7 +26,7 @@ class NodeController {
       final bodyJson = await request.body.asJson;
       final nodeCreate = NodeCreate.fromJson(bodyJson);
       final node = await _nodeService.createNode(nodeCreate);
-      
+
       return Response(
         201,
         body: jsonEncode(node.toJson()),
@@ -39,7 +41,7 @@ class NodeController {
     try {
       final id = request.params['id']!;
       final node = await _nodeService.getNode(id);
-      
+
       return Response.ok(
         jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
@@ -60,7 +62,7 @@ class NodeController {
       final bodyJson = await request.body.asJson;
       final nodeUpdate = NodeUpdate.fromJson(bodyJson);
       final node = await _nodeService.updateNode(id, nodeUpdate);
-      
+
       return Response.ok(
         jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
@@ -79,7 +81,7 @@ class NodeController {
     try {
       final id = request.params['id']!;
       await _nodeService.deleteNode(id);
-      
+
       return Response(204);
     } on RepositoryException catch (e) {
       if (e.code == RepositoryErrorCode.notFound) {
@@ -98,7 +100,7 @@ class NodeController {
     try {
       final id = request.params['id']!;
       final children = await _nodeService.getChildren(id);
-      
+
       return Response.ok(
         jsonEncode(children.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
@@ -112,7 +114,7 @@ class NodeController {
     try {
       final id = request.params['id']!;
       final trace = await _nodeService.trace(id);
-      
+
       return Response.ok(
         jsonEncode(trace.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
@@ -126,7 +128,7 @@ class NodeController {
     try {
       final prefix = request.params['prefix']!;
       final nodes = await _nodeService.getSpatialNodes(prefix);
-      
+
       return Response.ok(
         jsonEncode(nodes.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
