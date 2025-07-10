@@ -1,0 +1,172 @@
+openapi: 3.0.3
+info:
+  title: Graph Node Service
+  version: 1.0.0
+  description: A microservice for managing graph-based nodes with spatial and path-based relationships.
+  x-dart-name: GraphNodeApi
+
+paths:
+  /nodes:
+    post:
+      summary: Create a new node
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeCreate'
+      responses:
+        '201':
+          description: Node created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+
+  /nodes/{id}:
+    get:
+      summary: Get a node by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+        '404':
+          description: Node not found
+    patch:
+      summary: Update a node (content or spatialHash only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeUpdate'
+      responses:
+        '200':
+          description: Node updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+    delete:
+      summary: Delete a node
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Node deleted
+        '409':
+          description: Node has children (deletion blocked)
+
+  /nodes/{id}/children:
+    get:
+      summary: Get children of a node
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of child nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Node'
+
+  /nodes/{id}/trace:
+    get:
+      summary: Trace the node path back to the root
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of ancestor nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Node'
+
+  /nodes/spatial/{prefix}:
+    get:
+      summary: Get nodes by spatialHash prefix
+      parameters:
+        - in: path
+          name: prefix
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of matching nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Node'
+
+components:
+  schemas:
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+        root:
+          type: string
+        previous:
+          type: string
+          nullable: true
+        spatialHash:
+          type: string
+        content:
+          type: object
+          additionalProperties: true
+    NodeCreate:
+      type: object
+      required: [previous, spatialHash, content]
+      properties:
+        previous:
+          type: string
+          nullable: true
+        spatialHash:
+          type: string
+        content:
+          type: object
+          additionalProperties: true
+    NodeUpdate:
+      type: object
+      properties:
+        spatialHash:
+          type: string
+        content:
+          type: object
+          additionalProperties: true
