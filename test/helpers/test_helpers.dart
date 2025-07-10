@@ -1,4 +1,5 @@
-import 'package:kiss_graph/models/node.dart';
+import 'package:kiss_graph/graph-node-api.openapi.dart';
+import 'package:kiss_graph/models/node_extensions.dart';
 
 /// Test data helpers for creating consistent test nodes
 class TestData {
@@ -8,7 +9,7 @@ class TestData {
     Map<String, dynamic>? content,
   }) {
     final nodeId = id ?? 'root-1';
-    return Node(
+    return NodeExtensions.create(
       id: nodeId,
       root: nodeId,
       previous: null,
@@ -24,7 +25,7 @@ class TestData {
     String? spatialHash,
     Map<String, dynamic>? content,
   }) {
-    return Node(
+    return NodeExtensions.create(
       id: id ?? 'child-1',
       root: rootId,
       previous: parentId,
@@ -38,7 +39,7 @@ class TestData {
     String? spatialHash,
     Map<String, dynamic>? content,
   }) {
-    return NodeCreate(
+    return NodeCreateExtensions.create(
       previous: previous,
       spatialHash: spatialHash ?? 'xyz789',
       content: content ?? {'name': 'New Node', 'data': 42},
@@ -49,7 +50,7 @@ class TestData {
     String? spatialHash,
     Map<String, dynamic>? content,
   }) {
-    return NodeUpdate(
+    return NodeUpdateExtensions.create(
       spatialHash: spatialHash,
       content: content,
     );
@@ -64,7 +65,7 @@ class TestData {
       final previous = i == 0 ? null : 'node-${i - 1}';
       final root = 'node-0';
 
-      nodes.add(Node(
+      nodes.add(NodeExtensions.create(
         id: id,
         root: root,
         previous: previous,
@@ -79,21 +80,21 @@ class TestData {
   /// Creates nodes with common spatial prefixes for testing spatial queries
   static List<Node> createSpatialNodes() {
     return [
-      Node(
+      NodeExtensions.create(
         id: 'spatial-1',
         root: 'spatial-1',
         previous: null,
         spatialHash: 'abc123',
         content: {'region': 'North'},
       ),
-      Node(
+      NodeExtensions.create(
         id: 'spatial-2',
         root: 'spatial-2',
         previous: null,
         spatialHash: 'abc456',
         content: {'region': 'North-East'},
       ),
-      Node(
+      NodeExtensions.create(
         id: 'spatial-3',
         root: 'spatial-3',
         previous: null,
@@ -108,10 +109,11 @@ class TestData {
 class TestHelpers {
   /// Validates that a node has the expected structure
   static void validateNode(Node node) {
-    assert(node.id.isNotEmpty, 'Node ID should not be empty');
-    assert(node.root.isNotEmpty, 'Node root should not be empty');
-    assert(node.spatialHash.isNotEmpty, 'Spatial hash should not be empty');
-    assert(node.content.isNotEmpty, 'Content should not be empty');
+    assert(node.validId.isNotEmpty, 'Node ID should not be empty');
+    assert(node.validRoot.isNotEmpty, 'Node root should not be empty');
+    assert(
+        node.validSpatialHash.isNotEmpty, 'Spatial hash should not be empty');
+    assert(node.contentMap.isNotEmpty, 'Content should not be empty');
   }
 
   /// Validates that a node chain is correctly linked
@@ -124,12 +126,14 @@ class TestHelpers {
       if (i == 0) {
         // Root node
         assert(node.previous == null, 'Root node should have no previous');
-        assert(node.root == node.id, 'Root node should be its own root');
+        assert(
+            node.validRoot == node.validId, 'Root node should be its own root');
       } else {
         // Child node
-        assert(
-            node.previous == nodes[i - 1].id, 'Node should link to previous');
-        assert(node.root == nodes[0].id, 'Node should have correct root');
+        assert(node.previous == nodes[i - 1].validId,
+            'Node should link to previous');
+        assert(node.validRoot == nodes[0].validId,
+            'Node should have correct root');
       }
     }
   }

@@ -1,7 +1,8 @@
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/node.dart';
+import '../graph-node-api.openapi.dart';
+import '../models/node_extensions.dart';
 import '../repositories/node_repository.dart';
 
 class NodeService {
@@ -11,24 +12,27 @@ class NodeService {
   NodeService(this._repository);
 
   Future<Node> createNode(NodeCreate nodeCreate) async {
+    nodeCreate.validate(); // Validate input
+
     String id = _uuid.v4();
     String rootId = id;
 
-    if (nodeCreate.previous != null) {
+    final previousId = nodeCreate.validPrevious;
+    if (previousId != null) {
       try {
-        final parentNode = await _repository.get(nodeCreate.previous!);
-        rootId = parentNode.root;
+        final parentNode = await _repository.get(previousId);
+        rootId = parentNode.validRoot;
       } catch (e) {
-        throw Exception('Parent node not found: ${nodeCreate.previous}');
+        throw Exception('Parent node not found: $previousId');
       }
     }
 
-    final node = Node(
+    final node = NodeExtensions.create(
       id: id,
       root: rootId,
-      previous: nodeCreate.previous,
+      previous: previousId,
       spatialHash: nodeCreate.spatialHash,
-      content: nodeCreate.content,
+      content: nodeCreate.content.toMap(),
     );
 
     return await _repository.addNode(node);
@@ -42,7 +46,7 @@ class NodeService {
     return await _repository.update(id, (current) {
       return current.copyWith(
         spatialHash: nodeUpdate.spatialHash ?? current.spatialHash,
-        content: nodeUpdate.content ?? current.content,
+        content: nodeUpdate.content?.toMap() ?? current.contentMap,
       );
     });
   }
@@ -71,6 +75,7 @@ class NodeService {
     while (currentId != null) {
       try {
         final node = await _repository.get(currentId);
+        node.validate(); // Ensure we have a valid node
         path.add(node);
         currentId = node.previous;
       } catch (e) {

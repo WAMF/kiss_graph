@@ -1,6 +1,7 @@
 import 'package:kiss_repository/kiss_repository.dart';
 
-import '../models/node.dart';
+import '../graph-node-api.openapi.dart';
+import '../models/node_extensions.dart';
 import 'node_queries.dart';
 
 class NodeRepository extends InMemoryRepository<Node> {
@@ -12,7 +13,8 @@ class NodeRepository extends InMemoryRepository<Node> {
 
   // Domain-specific convenience methods
   Future<Node> addNode(Node node) async {
-    return await add(IdentifiedObject(node.id, node));
+    node.validate(); // Ensure node has valid required fields
+    return await add(IdentifiedObject(node.validId, node));
   }
 
   Future<List<Node>> getChildren(String parentId) async {

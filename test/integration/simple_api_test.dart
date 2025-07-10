@@ -1,304 +1,346 @@
 import 'dart:convert';
 
-import 'package:kiss_graph/controllers/node_controller.dart';
-import 'package:kiss_graph/repositories/node_repository.dart';
-import 'package:kiss_graph/services/node_service.dart';
-import 'package:shelf_plus/shelf_plus.dart';
+import 'package:kiss_graph/main.dart';
+import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('Simplified API Integration Tests', () {
-    late NodeRepository repository;
-    late NodeService service;
-    late NodeController controller;
+  group('Simple API Integration Tests', () {
     late Handler app;
 
     setUp(() {
-      // Initialize dependencies
-      repository = NodeRepository();
-      service = NodeService(repository);
-      controller = NodeController(service);
-
-      // Create app
-      final router = Router().plus;
-      router.use(logRequests());
-      controller.setupRoutes(router);
-      app = router.call;
+      app = init();
     });
 
-    tearDown(() {
-      repository.dispose();
-      service.dispose();
+    test('should create and retrieve a node', () async {
+      // Create a node using POST
+      final createRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'test123',
+          'content': {'name': 'Test Node', 'description': 'A test node'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final createResponse = await app(createRequest);
+      expect(createResponse.statusCode, equals(201));
+
+      final createBody = await createResponse.readAsString();
+      final createdNode = jsonDecode(createBody);
+
+      expect(createdNode['id'], isNotEmpty);
+      expect(createdNode['spatialHash'], equals('test123'));
+      expect(createdNode['content']['name'], equals('Test Node'));
+
+      // Retrieve the node using GET
+      final getRequest = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
+      );
+
+      final getResponse = await app(getRequest);
+      expect(getResponse.statusCode, equals(200));
+
+      final getBody = await getResponse.readAsString();
+      final retrievedNode = jsonDecode(getBody);
+
+      expect(retrievedNode['id'], equals(createdNode['id']));
+      expect(retrievedNode['spatialHash'], equals('test123'));
+      expect(retrievedNode['content']['name'], equals('Test Node'));
     });
 
-    group('Direct Handler Tests', () {
-      test('should create and retrieve a node through handlers', () async {
-        // Create a node using POST
-        final createRequest = Request(
+    test('should create a parent-child relationship', () async {
+      // Create parent node
+      final parentRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'parent123',
+          'content': {'type': 'parent'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final parentResponse = await app(parentRequest);
+      expect(parentResponse.statusCode, equals(201));
+
+      final parentBody = await parentResponse.readAsString();
+      final parent = jsonDecode(parentBody);
+
+      // Create child node
+      final childRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': parent['id'],
+          'spatialHash': 'child123',
+          'content': {'type': 'child'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final childResponse = await app(childRequest);
+      expect(childResponse.statusCode, equals(201));
+
+      final childBody = await childResponse.readAsString();
+      final child = jsonDecode(childBody);
+
+      expect(child['previous'], equals(parent['id']));
+      expect(child['root'], equals(parent['root'])); // Should inherit root
+      expect(child['content']['type'], equals('child'));
+
+      // Get children of parent
+      final childrenRequest = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/${parent['id']}/children'),
+      );
+
+      final childrenResponse = await app(childrenRequest);
+      expect(childrenResponse.statusCode, equals(200));
+
+      final childrenBody = await childrenResponse.readAsString();
+      final children = jsonDecode(childrenBody);
+
+      expect(children, isA<List>());
+      expect(children.length, equals(1));
+      expect(children[0]['id'], equals(child['id']));
+    });
+
+    test('should update a node', () async {
+      // Create a node first
+      final createRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'update123',
+          'content': {'status': 'original'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final createResponse = await app(createRequest);
+      final createBody = await createResponse.readAsString();
+      final createdNode = jsonDecode(createBody);
+
+      // Update the node
+      final updateRequest = Request(
+        'PATCH',
+        Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
+        body: jsonEncode({
+          'spatialHash': 'updated123',
+          'content': {'status': 'updated', 'new': 'field'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final updateResponse = await app(updateRequest);
+      expect(updateResponse.statusCode, equals(200));
+
+      final updateBody = await updateResponse.readAsString();
+      final updatedNode = jsonDecode(updateBody);
+
+      expect(updatedNode['id'], equals(createdNode['id']));
+      expect(updatedNode['spatialHash'], equals('updated123'));
+      expect(updatedNode['content']['status'], equals('updated'));
+      expect(updatedNode['content']['new'], equals('field'));
+    });
+
+    test('should delete a node', () async {
+      // Create a node first
+      final createRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'delete123',
+          'content': {'temp': 'node'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final createResponse = await app(createRequest);
+      final createBody = await createResponse.readAsString();
+      final createdNode = jsonDecode(createBody);
+
+      // Delete the node
+      final deleteRequest = Request(
+        'DELETE',
+        Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
+      );
+
+      final deleteResponse = await app(deleteRequest);
+      expect(deleteResponse.statusCode, equals(204));
+
+      // Verify node is gone
+      final getRequest = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
+      );
+
+      final getResponse = await app(getRequest);
+      expect(getResponse.statusCode, equals(404));
+    });
+
+    test('should trace a node path', () async {
+      // Create a chain of nodes
+      final rootRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'root123',
+          'content': {'level': 0}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final rootResponse = await app(rootRequest);
+      final rootBody = await rootResponse.readAsString();
+      final root = jsonDecode(rootBody);
+
+      final child1Request = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': root['id'],
+          'spatialHash': 'child1123',
+          'content': {'level': 1}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final child1Response = await app(child1Request);
+      final child1Body = await child1Response.readAsString();
+      final child1 = jsonDecode(child1Body);
+
+      // Trace from child1 back to root
+      final traceRequest = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/${child1['id']}/trace'),
+      );
+
+      final traceResponse = await app(traceRequest);
+      expect(traceResponse.statusCode, equals(200));
+
+      final traceBody = await traceResponse.readAsString();
+      final trace = jsonDecode(traceBody);
+
+      expect(trace, isA<List>());
+      expect(trace.length, equals(2));
+      expect(trace[0]['id'], equals(child1['id'])); // Starts with child1
+      expect(trace[1]['id'], equals(root['id'])); // Ends with root
+    });
+
+    test('should query nodes by spatial prefix', () async {
+      // Create nodes with different spatial hashes
+      final requests = [
+        {
+          'spatialHash': 'abc123',
+          'content': {'region': 'North'}
+        },
+        {
+          'spatialHash': 'abc456',
+          'content': {'region': 'North-East'}
+        },
+        {
+          'spatialHash': 'def789',
+          'content': {'region': 'South'}
+        },
+      ];
+
+      final createdNodes = <Map<String, dynamic>>[];
+      for (final requestData in requests) {
+        final request = Request(
           'POST',
           Uri.parse('http://localhost:8080/nodes'),
           body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'test123',
-            'content': {'name': 'Test Node', 'type': 'test'}
+            'previous': '',
+            ...requestData,
           }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final createResponse = await app(createRequest);
-        expect(createResponse.statusCode, equals(201));
-
-        final createBody = await createResponse.readAsString();
-        final createdNode = jsonDecode(createBody);
-
-        expect(createdNode['id'], isNotEmpty);
-        expect(createdNode['spatialHash'], equals('test123'));
-        expect(createdNode['content']['name'], equals('Test Node'));
-
-        // Retrieve the node using GET
-        final getRequest = Request(
-          'GET',
-          Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
-        );
-
-        final getResponse = await app(getRequest);
-        expect(getResponse.statusCode, equals(200));
-
-        final getBody = await getResponse.readAsString();
-        final retrievedNode = jsonDecode(getBody);
-
-        expect(retrievedNode['id'], equals(createdNode['id']));
-        expect(retrievedNode['content']['name'], equals('Test Node'));
-      });
-
-      test('should return 404 for non-existent node', () async {
-        final request = Request(
-          'GET',
-          Uri.parse('http://localhost:8080/nodes/non-existent'),
+          headers: {'Content-Type': 'application/json'},
         );
 
         final response = await app(request);
-        expect(response.statusCode, equals(404));
-      });
+        final body = await response.readAsString();
+        createdNodes.add(jsonDecode(body));
+      }
 
-      test('should update a node', () async {
-        // Create a node first
-        final createRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'update123',
-            'content': {'original': 'data'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
+      // Query for nodes with 'abc' prefix
+      final spatialRequest = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/spatial/abc'),
+      );
 
-        final createResponse = await app(createRequest);
-        final createBody = await createResponse.readAsString();
-        final createdNode = jsonDecode(createBody);
+      final spatialResponse = await app(spatialRequest);
+      expect(spatialResponse.statusCode, equals(200));
 
-        // Update the node
-        final updateRequest = Request(
-          'PATCH',
-          Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
-          body: jsonEncode({
-            'spatialHash': 'updated123',
-            'content': {'updated': 'content'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
+      final spatialBody = await spatialResponse.readAsString();
+      final spatialNodes = jsonDecode(spatialBody);
 
-        final updateResponse = await app(updateRequest);
-        expect(updateResponse.statusCode, equals(200));
+      expect(spatialNodes, isA<List>());
+      expect(spatialNodes.length, equals(2)); // abc123 and abc456
 
-        final updateBody = await updateResponse.readAsString();
-        final updatedNode = jsonDecode(updateBody);
+      final spatialHashes =
+          spatialNodes.map((node) => node['spatialHash']).toList();
+      expect(spatialHashes, containsAll(['abc123', 'abc456']));
+      expect(spatialHashes, isNot(contains('def789')));
+    });
 
-        expect(updatedNode['spatialHash'], equals('updated123'));
-        expect(updatedNode['content']['updated'], equals('content'));
-      });
+    test('should handle 404 for non-existent node', () async {
+      final request = Request(
+        'GET',
+        Uri.parse('http://localhost:8080/nodes/non-existent-id'),
+      );
 
-      test('should get children of a node', () async {
-        // Create parent
-        final parentRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'parent123',
-            'content': {'type': 'parent'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
+      final response = await app(request);
+      expect(response.statusCode, equals(404));
+    });
 
-        final parentResponse = await app(parentRequest);
-        final parentBody = await parentResponse.readAsString();
-        final parentNode = jsonDecode(parentBody);
+    test('should handle 409 when trying to delete node with children',
+        () async {
+      // Create parent node
+      final parentRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'spatialHash': 'parent123',
+          'content': {'type': 'parent'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-        // Create child
-        final childRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': parentNode['id'],
-            'spatialHash': 'child123',
-            'content': {'type': 'child'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
+      final parentResponse = await app(parentRequest);
+      final parentBody = await parentResponse.readAsString();
+      final parent = jsonDecode(parentBody);
 
-        await app(childRequest);
+      // Create child node
+      final childRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': parent['id'],
+          'spatialHash': 'child123',
+          'content': {'type': 'child'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
 
-        // Get children
-        final childrenRequest = Request(
-          'GET',
-          Uri.parse('http://localhost:8080/nodes/${parentNode['id']}/children'),
-        );
+      await app(childRequest);
 
-        final childrenResponse = await app(childrenRequest);
-        expect(childrenResponse.statusCode, equals(200));
+      // Try to delete parent (should fail)
+      final deleteRequest = Request(
+        'DELETE',
+        Uri.parse('http://localhost:8080/nodes/${parent['id']}'),
+      );
 
-        final childrenBody = await childrenResponse.readAsString();
-        final children = jsonDecode(childrenBody) as List;
-
-        expect(children.length, equals(1));
-        expect(children.first['content']['type'], equals('child'));
-      });
-
-      test('should trace path from child to root', () async {
-        // Create root
-        final rootRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'root123',
-            'content': {'level': 'root'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final rootResponse = await app(rootRequest);
-        final rootBody = await rootResponse.readAsString();
-        final rootNode = jsonDecode(rootBody);
-
-        // Create child
-        final childRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': rootNode['id'],
-            'spatialHash': 'child123',
-            'content': {'level': 'child'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final childResponse = await app(childRequest);
-        final childBody = await childResponse.readAsString();
-        final childNode = jsonDecode(childBody);
-
-        // Trace from child
-        final traceRequest = Request(
-          'GET',
-          Uri.parse('http://localhost:8080/nodes/${childNode['id']}/trace'),
-        );
-
-        final traceResponse = await app(traceRequest);
-        expect(traceResponse.statusCode, equals(200));
-
-        final traceBody = await traceResponse.readAsString();
-        final trace = jsonDecode(traceBody) as List;
-
-        expect(trace.length, equals(2));
-        expect(trace[0]['id'], equals(childNode['id'])); // Child first
-        expect(trace[1]['id'], equals(rootNode['id'])); // Root last
-      });
-
-      test('should query nodes by spatial prefix', () async {
-        // Create nodes with different spatial hashes
-        final node1Request = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'abc123',
-            'content': {'region': 'north'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final node2Request = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'abc456',
-            'content': {'region': 'northeast'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final node3Request = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': null,
-            'spatialHash': 'def789',
-            'content': {'region': 'south'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        await app(node1Request);
-        await app(node2Request);
-        await app(node3Request);
-
-        // Query by spatial prefix
-        final spatialRequest = Request(
-          'GET',
-          Uri.parse('http://localhost:8080/nodes/spatial/abc'),
-        );
-
-        final spatialResponse = await app(spatialRequest);
-        expect(spatialResponse.statusCode, equals(200));
-
-        final spatialBody = await spatialResponse.readAsString();
-        final spatialNodes = jsonDecode(spatialBody) as List;
-
-        expect(spatialNodes.length, equals(2)); // abc123 and abc456
-        expect(spatialNodes.every((n) => n['spatialHash'].startsWith('abc')),
-            isTrue);
-      });
-
-      test('should handle error cases', () async {
-        // Test invalid JSON
-        final invalidRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: 'invalid json',
-          headers: {'content-type': 'application/json'},
-        );
-
-        final invalidResponse = await app(invalidRequest);
-        expect(invalidResponse.statusCode, equals(400));
-
-        // Test non-existent parent
-        final orphanRequest = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': 'non-existent-parent',
-            'spatialHash': 'orphan123',
-            'content': {'status': 'orphaned'}
-          }),
-          headers: {'content-type': 'application/json'},
-        );
-
-        final orphanResponse = await app(orphanRequest);
-        expect(orphanResponse.statusCode, equals(400));
-      });
+      final deleteResponse = await app(deleteRequest);
+      expect(deleteResponse.statusCode, equals(409));
     });
   });
 }

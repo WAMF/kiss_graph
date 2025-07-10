@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
-import '../models/node.dart';
+import '../graph-node-api.openapi.dart';
 import '../services/node_service.dart';
 
 class NodeController {
@@ -73,7 +73,7 @@ class NodeController {
       }
       return _errorResponse(500, e.message);
     } catch (e) {
-      return _errorResponse(400, e.toString());
+      return _errorResponse(500, e.toString());
     }
   }
 
@@ -83,15 +83,21 @@ class NodeController {
       await _nodeService.deleteNode(id);
 
       return Response(204);
-    } on RepositoryException catch (e) {
-      if (e.code == RepositoryErrorCode.notFound) {
-        return _errorResponse(404, 'Node not found');
-      }
-      return _errorResponse(500, e.message);
     } catch (e) {
+      // Check for specific business rule violations first
       if (e.toString().contains('Cannot delete node with children')) {
-        return _errorResponse(409, 'Node has children (deletion blocked)');
+        return _errorResponse(409, 'Cannot delete node with children');
       }
+
+      // Then handle repository exceptions
+      if (e is RepositoryException) {
+        if (e.code == RepositoryErrorCode.notFound) {
+          return _errorResponse(404, 'Node not found');
+        }
+        return _errorResponse(500, e.message);
+      }
+
+      // Handle any other exceptions
       return _errorResponse(500, e.toString());
     }
   }
@@ -113,10 +119,10 @@ class NodeController {
   Future<Response> _trace(Request request) async {
     try {
       final id = request.params['id']!;
-      final trace = await _nodeService.trace(id);
+      final path = await _nodeService.trace(id);
 
       return Response.ok(
-        jsonEncode(trace.map((node) => node.toJson()).toList()),
+        jsonEncode(path.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
