@@ -1,5 +1,6 @@
+import 'package:kiss_graph/graph-node-api.openapi.dart';
 import 'package:kiss_graph/models/node_extensions.dart';
-import 'package:kiss_graph/repositories/node_repository.dart';
+import 'package:kiss_graph/repositories/node_queries.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:test/test.dart';
 
@@ -7,10 +8,13 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('NodeRepository Tests', () {
-    late NodeRepository repository;
+    late InMemoryRepository<Node> repository;
 
     setUp(() {
-      repository = NodeRepository();
+      repository = InMemoryRepository<Node>(
+        queryBuilder: NodeQueryBuilder(),
+        path: 'nodes',
+      );
     });
 
     tearDown(() {
@@ -21,14 +25,17 @@ void main() {
       test('should add a node', () async {
         final node = TestData.createRootNode();
 
-        final addedNode = await repository.addNode(node);
+        node.validate(); // Ensure node has valid required fields
+        final addedNode =
+            await repository.add(IdentifiedObject(node.validId, node));
         expect(addedNode.validId, equals(node.validId));
         expect(addedNode.contentMap, equals(node.contentMap));
       });
 
       test('should get a node by id', () async {
         final node = TestData.createRootNode();
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
         final retrieved = await repository.get(node.validId);
         expect(retrieved.validId, equals(node.validId));
@@ -37,7 +44,8 @@ void main() {
 
       test('should update a node', () async {
         final node = TestData.createRootNode();
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
         final updated = await repository.update(node.validId, (current) {
           return current.copyWith(
@@ -52,7 +60,8 @@ void main() {
 
       test('should delete a node', () async {
         final node = TestData.createRootNode();
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
         await repository.delete(node.validId);
 
@@ -74,7 +83,10 @@ void main() {
       test('should add multiple nodes', () async {
         final nodes = TestData.createSpatialNodes();
 
-        final futures = nodes.map((node) => repository.addNode(node));
+        final futures = nodes.map((node) {
+          node.validate();
+          return repository.add(IdentifiedObject(node.validId, node));
+        });
         final addedNodes = await Future.wait(futures);
 
         expect(addedNodes.length, equals(3));
@@ -95,7 +107,10 @@ void main() {
         ];
 
         // Add all nodes concurrently
-        final addFutures = nodes.map((node) => repository.addNode(node));
+        final addFutures = nodes.map((node) {
+          node.validate();
+          return repository.add(IdentifiedObject(node.validId, node));
+        });
         await Future.wait(addFutures);
 
         // Retrieve all nodes concurrently
@@ -114,7 +129,8 @@ void main() {
       test('should find children by parent ID', () async {
         // Create parent
         final parent = TestData.createRootNode(id: 'parent-1');
-        await repository.addNode(parent);
+        parent.validate();
+        await repository.add(IdentifiedObject(parent.validId, parent));
 
         // Create children
         final child1 = TestData.createChildNode(
@@ -128,10 +144,13 @@ void main() {
           rootId: parent.validId,
         );
 
-        await repository.addNode(child1);
-        await repository.addNode(child2);
+        child1.validate();
+        child2.validate();
+        await repository.add(IdentifiedObject(child1.validId, child1));
+        await repository.add(IdentifiedObject(child2.validId, child2));
 
-        final children = await repository.getChildren(parent.validId);
+        final children =
+            await repository.query(query: NodeChildrenQuery(parent.validId));
         expect(children.length, equals(2));
 
         final childIds = children.map((child) => child.validId).toList();
@@ -140,14 +159,17 @@ void main() {
 
       test('should return empty list for node with no children', () async {
         final node = TestData.createRootNode();
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
-        final children = await repository.getChildren(node.validId);
+        final children =
+            await repository.query(query: NodeChildrenQuery(node.validId));
         expect(children, isEmpty);
       });
 
       test('should handle non-existent parent', () async {
-        final children = await repository.getChildren('non-existent');
+        final children =
+            await repository.query(query: NodeChildrenQuery('non-existent'));
         expect(children, isEmpty);
       });
     });
@@ -157,10 +179,11 @@ void main() {
         final spatialNodes = TestData.createSpatialNodes();
 
         for (final node in spatialNodes) {
-          await repository.addNode(node);
+          node.validate();
+          await repository.add(IdentifiedObject(node.validId, node));
         }
 
-        final abcNodes = await repository.getSpatialNodes('abc');
+        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
         expect(abcNodes.length, equals(2));
 
         final spatialHashes =
@@ -170,17 +193,20 @@ void main() {
 
       test('should return empty list for non-matching prefix', () async {
         final node = TestData.createRootNode(spatialHash: 'xyz123');
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
-        final abcNodes = await repository.getSpatialNodes('abc');
+        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
         expect(abcNodes, isEmpty);
       });
 
       test('should handle exact hash matches', () async {
         final node = TestData.createRootNode(spatialHash: 'exact');
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
-        final exactNodes = await repository.getSpatialNodes('exact');
+        final exactNodes =
+            await repository.query(query: NodeSpatialQuery('exact'));
         expect(exactNodes.length, equals(1));
         expect(exactNodes.first.validSpatialHash, equals('exact'));
       });
@@ -189,7 +215,8 @@ void main() {
     group('Root Query', () {
       test('should find nodes by root ID', () async {
         final root = TestData.createRootNode(id: 'root-1');
-        await repository.addNode(root);
+        root.validate();
+        await repository.add(IdentifiedObject(root.validId, root));
 
         final child1 = TestData.createChildNode(
           id: 'child-1',
@@ -202,10 +229,13 @@ void main() {
           rootId: root.validId,
         );
 
-        await repository.addNode(child1);
-        await repository.addNode(child2);
+        child1.validate();
+        child2.validate();
+        await repository.add(IdentifiedObject(child1.validId, child1));
+        await repository.add(IdentifiedObject(child2.validId, child2));
 
-        final rootNodes = await repository.getByRoot(root.validId);
+        final rootNodes =
+            await repository.query(query: NodeRootQuery(root.validId));
         expect(rootNodes.length, equals(3)); // root + 2 children
 
         final nodeIds = rootNodes.map((node) => node.validId).toList();
@@ -214,9 +244,11 @@ void main() {
 
       test('should return only root for single node', () async {
         final root = TestData.createRootNode();
-        await repository.addNode(root);
+        root.validate();
+        await repository.add(IdentifiedObject(root.validId, root));
 
-        final rootNodes = await repository.getByRoot(root.validId);
+        final rootNodes =
+            await repository.query(query: NodeRootQuery(root.validId));
         expect(rootNodes.length, equals(1));
         expect(rootNodes.first.validId, equals(root.validId));
       });
@@ -225,7 +257,8 @@ void main() {
     group('Streaming', () {
       test('should support streaming operations', () async {
         final node = TestData.createRootNode();
-        await repository.addNode(node);
+        node.validate();
+        await repository.add(IdentifiedObject(node.validId, node));
 
         // Basic test that streaming methods exist
         expect(() => repository.stream(node.validId), returnsNormally);
@@ -267,7 +300,8 @@ void main() {
 
         // Add nodes to repository
         for (final node in chainNodes) {
-          await repository.addNode(node);
+          node.validate();
+          await repository.add(IdentifiedObject(node.validId, node));
         }
 
         // Test that all nodes are retrievable
@@ -279,7 +313,8 @@ void main() {
         // Test that children queries work correctly
         for (int i = 0; i < chainNodes.length - 1; i++) {
           final parent = chainNodes[i];
-          final children = await repository.getChildren(parent.validId);
+          final children =
+              await repository.query(query: NodeChildrenQuery(parent.validId));
 
           if (i < chainNodes.length - 1) {
             expect(children.length, equals(1));
@@ -292,17 +327,18 @@ void main() {
         final spatialNodes = TestData.createSpatialNodes();
 
         for (final node in spatialNodes) {
-          await repository.addNode(node);
+          node.validate();
+          await repository.add(IdentifiedObject(node.validId, node));
         }
 
         // Test spatial query
-        final abcNodes = await repository.getSpatialNodes('abc');
+        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
         expect(abcNodes.length, equals(2));
 
         // Test that spatial nodes are also in root queries
         for (final node in spatialNodes) {
-          final rootNodes =
-              await repository.getByRoot(node.validId); // Each is its own root
+          final rootNodes = await repository.query(
+              query: NodeRootQuery(node.validId)); // Each is its own root
           expect(rootNodes.length, equals(1));
           expect(rootNodes.first.validId, equals(node.validId));
         }

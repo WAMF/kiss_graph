@@ -1,6 +1,6 @@
 import 'package:kiss_graph/graph-node-api.openapi.dart';
 import 'package:kiss_graph/models/node_extensions.dart';
-import 'package:kiss_graph/repositories/node_repository.dart';
+import 'package:kiss_graph/repositories/node_queries.dart';
 import 'package:kiss_graph/services/node_service.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:test/test.dart';
@@ -9,11 +9,14 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('NodeService Tests', () {
-    late NodeRepository repository;
+    late Repository<Node> repository;
     late NodeService service;
 
     setUp(() {
-      repository = NodeRepository();
+      repository = InMemoryRepository<Node>(
+        queryBuilder: NodeQueryBuilder(),
+        path: 'nodes',
+      );
       service = NodeService(repository);
     });
 

@@ -3,10 +3,10 @@ import 'package:uuid/uuid.dart';
 
 import '../graph-node-api.openapi.dart';
 import '../models/node_extensions.dart';
-import '../repositories/node_repository.dart';
+import '../repositories/node_queries.dart';
 
 class NodeService {
-  final NodeRepository _repository;
+  final Repository<Node> _repository;
   final Uuid _uuid = const Uuid();
 
   NodeService(this._repository);
@@ -35,7 +35,9 @@ class NodeService {
       content: nodeCreate.content.toMap(),
     );
 
-    return await _repository.addNode(node);
+    // Use generic repository interface
+    node.validate(); // Ensure node has valid required fields
+    return await _repository.add(IdentifiedObject(node.validId, node));
   }
 
   Future<Node> getNode(String id) async {
@@ -53,7 +55,7 @@ class NodeService {
 
   Future<void> deleteNode(String id) async {
     // Business logic: prevent deletion of nodes with children
-    final children = await _repository.getChildren(id);
+    final children = await _repository.query(query: NodeChildrenQuery(id));
     if (children.isNotEmpty) {
       throw RepositoryException(
         message: 'Cannot delete node with children',
@@ -65,7 +67,7 @@ class NodeService {
   }
 
   Future<List<Node>> getChildren(String id) async {
-    return await _repository.getChildren(id);
+    return await _repository.query(query: NodeChildrenQuery(id));
   }
 
   Future<List<Node>> trace(String nodeId) async {
@@ -91,11 +93,11 @@ class NodeService {
   }
 
   Future<List<Node>> getSpatialNodes(String spatialPrefix) async {
-    return await _repository.getSpatialNodes(spatialPrefix);
+    return await _repository.query(query: NodeSpatialQuery(spatialPrefix));
   }
 
   Future<List<Node>> getNodesByRoot(String rootId) async {
-    return await _repository.getByRoot(rootId);
+    return await _repository.query(query: NodeRootQuery(rootId));
   }
 
   Future<List<Node>> getAllNodes() async {
