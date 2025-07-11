@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Graph Node Service
-  version: 1.0.0
-  description: A microservice for managing graph-based nodes with hierarchical path relationships and breadcrumb navigation.
+  version: 0.2.0
+  description: A service for managing hierarchical graph-based nodes with path indexing and ancestry tracing.
 
 paths:
   /nodes:
@@ -105,7 +105,7 @@ paths:
             type: string
       responses:
         '200':
-          description: List of ancestor nodes
+          description: List of ancestor nodes from the given node back to root
           content:
             application/json:
               schema:
@@ -115,16 +115,18 @@ paths:
 
   /nodes/path/{prefix}:
     get:
-      summary: Get nodes by pathHash prefix (breadcrumbs)
+      summary: Query nodes by pathHash prefix
+      description: Find all nodes whose pathHash starts with the given prefix (e.g., prefix "1" matches "1", "1.1", "1.2.3")
       parameters:
         - in: path
           name: prefix
           required: true
           schema:
             type: string
+          description: The pathHash prefix to search for
       responses:
         '200':
-          description: List of matching nodes
+          description: List of nodes with matching pathHash prefix
           content:
             application/json:
               schema:
@@ -139,33 +141,42 @@ components:
       properties:
         id:
           type: string
+          description: Unique node identifier
         root:
           type: string
+          description: ID of the root node of this graph
         previous:
           type: string
           nullable: true
+          description: ID of the parent node (null for root nodes)
         pathHash:
           type: string
+          description: Hierarchical dot-notation path (e.g., "1.2.3")
         content:
           type: object
           additionalProperties: true
+          description: Arbitrary JSON object representing the node payload
     NodeCreate:
       type: object
       required: [previous, content]
       properties:
         previous:
           type: string
-          nullable: true
+          description: ID of the parent node (empty string for root nodes)
         pathHash:
           type: string
+          description: Optional custom pathHash (auto-generated if not provided)
         content:
           type: object
           additionalProperties: true
+          description: Arbitrary JSON object representing the node payload
     NodeUpdate:
       type: object
       properties:
         pathHash:
           type: string
+          description: New pathHash for the node
         content:
           type: object
           additionalProperties: true
+          description: New content for the node
