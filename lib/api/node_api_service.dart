@@ -17,7 +17,6 @@ class NodeApiService {
       ..delete('/nodes/<id>', _deleteNode)
       ..get('/nodes/<id>/children', _getChildren)
       ..get('/nodes/<id>/trace', _trace)
-      ..get('/nodes/<id>/breadcrumbs', _getBreadcrumbs)
       ..get('/nodes/path/<prefix>', _getPathNodes);
   }
 
@@ -134,20 +133,6 @@ class NodeApiService {
 
       return Response.ok(
         jsonEncode(nodes.map((node) => node.toJson()).toList()),
-        headers: {'Content-Type': 'application/json'},
-      );
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
-    }
-  }
-
-  Future<Response> _getBreadcrumbs(Request request) async {
-    try {
-      final id = request.params['id']!;
-      final breadcrumbs = await _nodeService.getBreadcrumbs(id);
-
-      return Response.ok(
-        jsonEncode(breadcrumbs.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
     } on Exception catch (e) {

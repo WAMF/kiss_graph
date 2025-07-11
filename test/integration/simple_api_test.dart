@@ -299,7 +299,8 @@ void main() {
       expect(pathNodes, isA<List<dynamic>>());
       expect(pathNodes.length, equals(3)); // Should get "1", "1.1", and "1.2"
 
-      final pathHashes = pathNodes.map((node) => node['pathHash']).toList();
+      final pathHashes =
+          pathNodes.map((dynamic node) => node['pathHash']).toList();
       expect(pathHashes, contains('1'));
       expect(pathHashes, contains('1.1'));
       expect(pathHashes, contains('1.2'));
@@ -353,70 +354,6 @@ void main() {
 
       final deleteResponse = await app(deleteRequest);
       expect(deleteResponse.statusCode, equals(409));
-    });
-
-    test('should get breadcrumbs for a node', () async {
-      // Create a hierarchy: root -> child -> grandchild
-      final rootRequest = Request(
-        'POST',
-        Uri.parse('http://localhost:8080/nodes'),
-        body: jsonEncode({
-          'previous': '',
-          'content': {'name': 'Root'}
-        }),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      final rootResponse = await app(rootRequest);
-      final rootBody = await rootResponse.readAsString();
-      final root = jsonDecode(rootBody);
-
-      final childRequest = Request(
-        'POST',
-        Uri.parse('http://localhost:8080/nodes'),
-        body: jsonEncode({
-          'previous': root['id'],
-          'content': {'name': 'Child'}
-        }),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      final childResponse = await app(childRequest);
-      final childBody = await childResponse.readAsString();
-      final child = jsonDecode(childBody);
-
-      final grandchildRequest = Request(
-        'POST',
-        Uri.parse('http://localhost:8080/nodes'),
-        body: jsonEncode({
-          'previous': child['id'],
-          'content': {'name': 'Grandchild'}
-        }),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      final grandchildResponse = await app(grandchildRequest);
-      final grandchildBody = await grandchildResponse.readAsString();
-      final grandchild = jsonDecode(grandchildBody);
-
-      // Get breadcrumbs for the grandchild
-      final breadcrumbsRequest = Request(
-        'GET',
-        Uri.parse(
-            'http://localhost:8080/nodes/${grandchild['id']}/breadcrumbs'),
-      );
-
-      final breadcrumbsResponse = await app(breadcrumbsRequest);
-      expect(breadcrumbsResponse.statusCode, equals(200));
-
-      final breadcrumbsBody = await breadcrumbsResponse.readAsString();
-      final breadcrumbs = jsonDecode(breadcrumbsBody);
-
-      expect(breadcrumbs, isA<List<dynamic>>());
-      expect(breadcrumbs.length, equals(3)); // root, child, grandchild
-
-      final names = breadcrumbs.map((node) => node['content']['name']).toList();
-      expect(names, containsAll(['Root', 'Child', 'Grandchild']));
     });
   });
 }

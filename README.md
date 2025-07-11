@@ -1,8 +1,6 @@
-# KISS Graph
+# Kiss Graph
 
 A reusable Dart library for managing hierarchical graph-based nodes with path indexing and tracing, featuring dependency injection support. Built on the [kiss_repository](https://pub.dev/packages/kiss_repository) ecosystem for flexible data persistence.
-
-[![pub package](https://img.shields.io/pub/v/kiss_graph.svg)](https://pub.dev/packages/kiss_graph)
 
 ---
 
@@ -12,7 +10,7 @@ This library provides:
 
 - **Graph Node Management** - Create and manage hierarchical node structures
 - **Hierarchical Indexing** - Query nodes by `pathHash` prefix using dot notation (e.g., "1.1", "1.2.3")
-- **Path Tracing** - Trace ancestry back to root and get breadcrumb paths
+- **Path Tracing** - Trace ancestry back to root for navigation
 - **Tree Navigation** - Find children, siblings, and ancestors efficiently
 - **Dependency Injection** - Inject any `Repository<Node>` implementation
 - **REST API Ready** - Built-in HTTP endpoints with shelf_plus integration
@@ -93,7 +91,6 @@ Each node includes:
 | DELETE | `/nodes/{id}`               | Delete node (error if it has children)   |
 | GET    | `/nodes/{id}/children`      | List direct children of a node           |
 | GET    | `/nodes/{id}/trace`         | Trace node path back to root             |
-| GET    | `/nodes/{id}/breadcrumbs`   | Get breadcrumb path                      |
 | GET    | `/nodes/path/{prefix}`      | Query all nodes with `pathHash` starting with prefix |
 
 See [graph-node-api.yaml](./graph-node-api.yaml) for full OpenAPI documentation.
@@ -191,7 +188,7 @@ The main configuration class that sets up dependency injection:
 ## 🛠 Use Cases
 
 - **Decision Trees** - Navigate choices with hierarchical paths
-- **Story Graphs** - Create branching narratives with breadcrumb navigation  
+- **Story Graphs** - Create branching narratives with path navigation  
 - **Knowledge Bases** - Organize information in hierarchical categories
 - **File Systems** - Model folder structures with path-based queries
 - **Organizational Charts** - Represent hierarchical relationships

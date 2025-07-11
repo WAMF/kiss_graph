@@ -105,25 +105,6 @@ class NodeService {
     return _repository.query(query: NodePathQuery(pathPrefix));
   }
 
-  /// Get all nodes in the breadcrumb path for a given node
-  Future<List<Node>> getBreadcrumbs(String nodeId) async {
-    final node = await _repository.get(nodeId);
-    final ancestorPaths =
-        PathHashGenerator.getAncestorPaths(node.validPathHash);
-
-    final breadcrumbs = <Node>[];
-    for (final path in ancestorPaths) {
-      final pathNodes = await _repository.query(query: NodePathQuery(path));
-      final exactMatch =
-          pathNodes.where((n) => n.validPathHash == path).firstOrNull;
-      if (exactMatch != null) {
-        breadcrumbs.add(exactMatch);
-      }
-    }
-
-    return breadcrumbs;
-  }
-
   Future<int> _getSiblingCount(String parentId) async {
     final children =
         await _repository.query(query: NodeChildrenQuery(parentId));

@@ -1,31 +1,23 @@
-# KISS Graph Example Server
+# Kiss Graph Example
 
-This example demonstrates how to use the `kiss_graph` library to build a graph node API server with dependency injection support.
+This example demonstrates how to use the `kiss_graph` library with different repository configurations.
 
-## Running the Example
+## 🚀 Quick Start
 
-1. **Install dependencies:**
-   ```bash
-   dart pub get
-   ```
+Run the server:
 
-2. **Start the server:**
-   ```bash
-   dart run main.dart
-   ```
+```bash
+dart pub get
+dart run main.dart
+```
 
-3. **Test the API:**
-   ```bash
-   curl -X POST http://localhost:8080/nodes \
-     -H "Content-Type: application/json" \
-     -d '{"content": {"name": "Test Node"}, "pathHash": "1"}'
-   ```
+Then visit: `http://localhost:8080`
 
-The server will be available at `http://localhost:8080`
+## 📖 What's Included
 
-## Usage Examples
+### Basic Setup
 
-### 1. Simple In-Memory Repository (Current Example)
+The most straightforward way to get started:
 
 ```dart
 import 'package:kiss_graph/kiss_graph.dart';
@@ -36,7 +28,7 @@ void main() => shelfRun(init);
 Handler init() {
   final app = Router().plus;
 
-  // Use built-in in-memory repository
+  // One-line setup with in-memory repository
   final config = GraphApiConfiguration.withInMemoryRepository();
 
   app.use(logRequests());
@@ -46,122 +38,242 @@ Handler init() {
 }
 ```
 
-### 2. Custom Repository Implementation
+### Custom Repository Injection
+
+For production use with your own data layer:
 
 ```dart
 import 'package:kiss_graph/kiss_graph.dart';
 import 'package:kiss_repository/kiss_repository.dart';
-import 'package:shelf_plus/shelf_plus.dart';
 
-// Example with a custom repository (e.g., Firebase, PostgreSQL, etc.)
-Handler init() {
-  final app = Router().plus;
-
-  // Inject your own repository implementation
-  final customRepository = YourCustomRepository<Node>(
-    // your configuration
-  );
+void main() {
+  // Use your preferred repository implementation
+  final customRepository = FirebaseRepository<Node>(/* config */);
   
   final config = GraphApiConfiguration(repository: customRepository);
-
-  app.use(logRequests());
-  config.setupRoutes(app);
-
-  return app.call;
+  
+  // Your server setup...
 }
 ```
 
-### 3. Manual Dependency Injection
+### Manual Dependency Injection
+
+For full control over service instantiation:
 
 ```dart
 import 'package:kiss_graph/kiss_graph.dart';
-import 'package:kiss_repository/kiss_repository.dart';
-import 'package:shelf_plus/shelf_plus.dart';
 
-Handler init() {
-  final app = Router().plus;
-
-  // Manual DI for maximum control
+void main() {
   final repository = InMemoryRepository<Node>(
     queryBuilder: NodeQueryBuilder(),
-    path: 'nodes',
   );
   
   final nodeService = NodeService(repository);
-  final nodeApiService = NodeApiService(nodeService);
-
-  app.use(logRequests());
-  nodeApiService.setupRoutes(app);
-
-  return app.call;
+  final apiService = NodeApiService(nodeService);
+  
+  // Manual route setup...
 }
 ```
 
-### 4. Testing with Override
+## 🧪 Test the API
 
-```dart
-import 'package:kiss_graph/kiss_graph.dart';
-import 'package:test/test.dart';
-
-void main() {
-  test('example with test repository', () async {
-    // Create configuration with test repository
-    final testRepository = MockRepository<Node>();
-    final config = GraphApiConfiguration(repository: testRepository);
-    
-    // Use the service in your tests
-    final service = config.nodeService;
-    
-    // Test your logic...
-  });
-}
+### Create a root node:
+```bash
+curl -X POST http://localhost:8080/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "previous": "",
+    "content": {"name": "Root Node", "description": "The beginning"}
+  }'
 ```
 
-## Available Repository Implementations
+### Create a child node:
+```bash
+curl -X POST http://localhost:8080/nodes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "previous": "ROOT_NODE_ID_HERE",
+    "content": {"name": "Child Node", "type": "branch"}
+  }'
+```
 
-The `kiss_graph` library works with any `Repository<Node>` implementation from the [kiss_repository](https://pub.dev/packages/kiss_repository) ecosystem:
+### Get node details:
+```bash
+curl http://localhost:8080/nodes/NODE_ID_HERE
+```
 
-- **InMemoryRepository** (included) - For testing and demos
-- **[Firebase Firestore](https://github.com/WAMF/kiss_firebase_repository)** - Real-time apps with offline support
-- **[PocketBase](https://github.com/WAMF/kiss_pocketbase_repository)** - Self-hosted apps
-- **[AWS DynamoDB](https://github.com/WAMF/kiss_dynamodb_repository)** - Server-side/enterprise apps
+### Trace ancestry:
+```bash
+curl http://localhost:8080/nodes/CHILD_NODE_ID/trace
+```
 
-## API Endpoints
+### Query by path:
+```bash
+curl http://localhost:8080/nodes/path/1
+```
+
+## 📖 Available Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/nodes` | Create a new node |
 | GET | `/nodes/{id}` | Get node by ID |
-| PATCH | `/nodes/{id}` | Update node content/pathHash |
-| DELETE | `/nodes/{id}` | Delete node (fails if has children) |
+| PATCH | `/nodes/{id}` | Update node |
+| DELETE | `/nodes/{id}` | Delete node |
 | GET | `/nodes/{id}/children` | Get direct children |
-| GET | `/nodes/{id}/trace` | Trace path to root |
-| GET | `/nodes/{id}/breadcrumbs` | Get breadcrumb path |
-| GET | `/nodes/path/{prefix}` | Query by pathHash prefix |
+| GET | `/nodes/{id}/trace` | Trace to root |
+| GET | `/nodes/path/{prefix}` | Query by path prefix |
 
-## Configuration Options
+## 🔗 Repository Options
 
-### GraphApiConfiguration.withInMemoryRepository()
+The `kiss_graph` library works with any `Repository<Node>` implementation:
 
-Creates a configuration with an in-memory repository, perfect for development and testing.
+### 📦 In-Memory (Development/Testing)
+```dart
+final config = GraphApiConfiguration.withInMemoryRepository();
+```
 
-**Parameters:**
-- `path` (optional): Storage path identifier (default: 'nodes')
+### 🔥 Firebase Firestore
+```dart
+import 'package:kiss_firebase_repository/kiss_firebase_repository.dart';
 
-### GraphApiConfiguration()
+final repository = FirebaseRepository<Node>(
+  firestore: FirebaseFirestore.instance,
+  collectionPath: 'nodes',
+  fromJson: Node.fromJson,
+  toJson: (node) => node.toJson(),
+);
 
-Creates a configuration with a custom repository implementation.
+final config = GraphApiConfiguration(repository: repository);
+```
 
-**Parameters:**
-- `repository`: Any `Repository<Node>` implementation
+### 📱 PocketBase
+```dart
+import 'package:kiss_pocketbase_repository/kiss_pocketbase_repository.dart';
 
-## Cleanup
+final repository = PocketBaseRepository<Node>(
+  client: pb,
+  collection: 'nodes',
+  fromJson: Node.fromJson,
+  toJson: (node) => node.toJson(),
+);
 
-Don't forget to dispose of resources when shutting down:
+final config = GraphApiConfiguration(repository: repository);
+```
+
+### ☁️ AWS DynamoDB
+```dart
+import 'package:kiss_dynamodb_repository/kiss_dynamodb_repository.dart';
+
+final repository = DynamoDbRepository<Node>(
+  client: dynamoClient,
+  tableName: 'nodes',
+  fromJson: Node.fromJson,
+  toJson: (node) => node.toJson(),
+);
+
+final config = GraphApiConfiguration(repository: repository);
+```
+
+## 🧪 Testing Strategies
+
+### Unit Testing
+```dart
+import 'package:kiss_graph/kiss_graph.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('Node Operations', () {
+    late NodeService service;
+    
+    setUp(() {
+      final config = GraphApiConfiguration.withInMemoryRepository();
+      service = config.nodeService;
+    });
+    
+    test('should create hierarchical nodes', () async {
+      final root = await service.createNode(NodeCreate(
+        content: NodeContent.fromMap({'name': 'Root'}),
+      ));
+      
+      final child = await service.createNode(NodeCreate(
+        previous: root.validId,
+        content: NodeContent.fromMap({'name': 'Child'}),
+      ));
+      
+      expect(child.validPathHash, equals('1.1'));
+    });
+  });
+}
+```
+
+### Integration Testing
+```dart
+import 'package:shelf/shelf.dart';
+import 'package:shelf_plus/shelf_plus.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('API Integration', () {
+    late Handler app;
+    
+    setUp(() {
+      final router = Router().plus;
+      final config = GraphApiConfiguration.withInMemoryRepository();
+      config.setupRoutes(router);
+      app = router.call;
+    });
+    
+    test('should create and retrieve nodes', () async {
+      // Create node
+      final createRequest = Request(
+        'POST',
+        Uri.parse('http://localhost/nodes'),
+        body: '{"content": {"test": "data"}}',
+        headers: {'Content-Type': 'application/json'},
+      );
+      
+      final createResponse = await app(createRequest);
+      expect(createResponse.statusCode, equals(201));
+      
+      // Test continues...
+    });
+  });
+}
+```
+
+## 🎯 Next Steps
+
+1. **Explore the code** - Check out `main.dart` for implementation details
+2. **Run tests** - Use `dart test` to see comprehensive test examples  
+3. **Try different repositories** - Swap out the in-memory repository for production databases
+4. **Build your application** - Use the node hierarchy for your specific use case
+5. **Check documentation** - See `../doc/` for API reference and guides
+
+## 🔧 Configuration Options
+
+### GraphApiConfiguration
+
+The main entry point for dependency injection:
 
 ```dart
-// In your shutdown handler
+// Simple setup (in-memory)
+final config = GraphApiConfiguration.withInMemoryRepository();
+
+// Custom repository
+final config = GraphApiConfiguration(repository: yourRepository);
+
+// Access services
+final nodeService = config.nodeService;
+final apiService = config.nodeApiService;
+
+// Setup routes
+config.setupRoutes(app);
+
+// Cleanup
 config.dispose();
 ```
 
-This ensures proper cleanup of streams, connections, and other resources. 
+## 🤝 Contributing
+
+Feel free to extend this example or suggest improvements via issues and PRs! 
