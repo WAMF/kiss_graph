@@ -1,6 +1,6 @@
 # KISS Graph
 
-A reusable Dart library for managing graph-based nodes with spatial queries and path tracing, featuring dependency injection support. Built on the [kiss_repository](https://pub.dev/packages/kiss_repository) ecosystem for flexible data persistence.
+A reusable Dart library for managing hierarchical graph-based nodes with path indexing and tracing, featuring dependency injection support. Built on the [kiss_repository](https://pub.dev/packages/kiss_repository) ecosystem for flexible data persistence.
 
 [![pub package](https://img.shields.io/pub/v/kiss_graph.svg)](https://pub.dev/packages/kiss_graph)
 
@@ -11,8 +11,9 @@ A reusable Dart library for managing graph-based nodes with spatial queries and 
 This library provides:
 
 - **Graph Node Management** - Create and manage hierarchical node structures
-- **Spatial Queries** - Query nodes by `pathHash` prefix (similar to Geohash)
+- **Hierarchical Indexing** - Query nodes by `pathHash` prefix using dot notation (e.g., "1.1", "1.2.3")
 - **Path Tracing** - Trace ancestry back to root and get breadcrumb paths
+- **Tree Navigation** - Find children, siblings, and ancestors efficiently
 - **Dependency Injection** - Inject any `Repository<Node>` implementation
 - **REST API Ready** - Built-in HTTP endpoints with shelf_plus integration
 
@@ -77,7 +78,7 @@ Each node includes:
 | `id`       | Unique node identifier                        |
 | `root`     | ID of the root node of this graph            |
 | `previous` | ID of the parent node (or null for root)     |
-| `pathHash` | A spatial prefix string for hierarchical lookup |
+| `pathHash` | A hierarchical dot-notation path for tree indexing (e.g., "1.2.3") |
 | `content`  | Arbitrary JSON object representing the payload |
 
 ---
@@ -93,7 +94,7 @@ Each node includes:
 | GET    | `/nodes/{id}/children`      | List direct children of a node           |
 | GET    | `/nodes/{id}/trace`         | Trace node path back to root             |
 | GET    | `/nodes/{id}/breadcrumbs`   | Get breadcrumb path                      |
-| GET    | `/nodes/path/{prefix}`      | Query all nodes starting with `pathHash` |
+| GET    | `/nodes/path/{prefix}`      | Query all nodes with `pathHash` starting with prefix |
 
 See [graph-node-api.yaml](./graph-node-api.yaml) for full OpenAPI documentation.
 
@@ -189,9 +190,12 @@ The main configuration class that sets up dependency injection:
 
 ## 🛠 Use Cases
 
-- Building decision trees or story graphs
-- Dependency resolution graphs
-- Knowledge graphs with structured and spatial components
+- **Decision Trees** - Navigate choices with hierarchical paths
+- **Story Graphs** - Create branching narratives with breadcrumb navigation  
+- **Knowledge Bases** - Organize information in hierarchical categories
+- **File Systems** - Model folder structures with path-based queries
+- **Organizational Charts** - Represent hierarchical relationships
+- **Dependency Graphs** - Track hierarchical dependencies
 
 
 ## 📄 License

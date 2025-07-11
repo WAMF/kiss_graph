@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Library Package Structure**: Transformed from standalone microservice to reusable Dart library
+- **Accurate Documentation**: Clarified pathHash system as hierarchical indexing, not geographical spatial queries
 - **Dependency Injection**: `GraphApiConfiguration` class for flexible repository injection
 - **Factory Methods**: `GraphApiConfiguration.withInMemoryRepository()` for quick setup
 - **API Documentation Automation**: Complete documentation generation system using OpenAPI
