@@ -7,24 +7,24 @@ The KISS Graph library includes automated API documentation generation from the 
 ### 1. Generate Documentation
 ```bash
 # Using the convenient wrapper
-dart docs/docs.dart generate
+dart doc/docs.dart generate
 
 # Or directly
-dart docs/generate_docs.dart
+dart doc/generate_docs.dart
 ```
 
 ### 2. Open Documentation
 ```bash
 # Using the wrapper (opens in default browser)
-dart docs/docs.dart open
+dart doc/docs.dart open
 
 # Or open manually
-# Open docs/api/index.html in your browser
+# Open doc/api/index.html in your browser
 ```
 
 ### 3. Clean Generated Files
 ```bash
-dart docs/docs.dart clean
+dart doc/docs.dart clean
 ```
 
 ## Requirements
@@ -41,11 +41,11 @@ dart docs/docs.dart clean
 
 ## Available Scripts
 
-### `docs/docs.dart` - Documentation Manager
+### `doc/docs.dart` - Documentation Manager
 The main utility script with convenient commands:
 
 ```bash
-dart docs/docs.dart <command>
+dart doc/docs.dart <command>
 ```
 
 **Commands:**
@@ -54,17 +54,17 @@ dart docs/docs.dart <command>
 - `clean`, `c` - Clean generated files
 - `help`, `h` - Show help
 
-### `docs/generate_docs.dart` - Documentation Generator
+### `doc/generate_docs.dart` - Documentation Generator
 Generates HTML documentation from the OpenAPI specification:
 
 ```bash
-dart docs/generate_docs.dart
+dart doc/generate_docs.dart
 ```
 
 **Features:**
 - Uses OpenAPI Generator with HTML2 template
 - Creates interactive documentation with try-it-out functionality
-- Outputs to `docs/api/` directory
+- Outputs to `doc/api/` directory
 - Includes error checking and helpful messages
 
 ### File Access
@@ -93,20 +93,20 @@ cd example
 dart run main.dart &
 
 # Generate and open docs
-dart docs/docs.dart generate
-dart docs/docs.dart open
+dart doc/docs.dart generate
+dart doc/docs.dart open
 
 # Now you have:
 # - API server: http://localhost:8080
-# - API docs: file:///.../docs/api/index.html
+# - API docs: file:///.../doc/api/index.html
 ```
 
 ### In CI/CD Pipeline
 ```bash
 # Generate docs as part of build process
-dart docs/docs.dart generate
+dart doc/docs.dart generate
 
-# Deploy docs/ directory to your static hosting
+# Deploy doc/ directory to your static hosting
 ```
 
 ### For Package Users
@@ -120,7 +120,7 @@ Package users can generate documentation for their own projects:
 ## Customization
 
 ### OpenAPI Generator Options
-Modify `docs/generate_docs.dart` to customize generation:
+Modify `doc/generate_docs.dart` to customize generation:
 
 ```dart
 final result = await Process.run('npx', [
@@ -135,7 +135,7 @@ final result = await Process.run('npx', [
 ```
 
 ### Browser Opening
-Modify `docs/docs.dart` to change how documentation opens:
+Modify `doc/docs.dart` to change how documentation opens:
 
 ```dart
 // Custom browser command
@@ -148,12 +148,12 @@ if (Platform.isMacOS) {
 
 ### Redoc
 ```bash
-npx redoc-cli build graph-node-api.yaml --output docs/api/redoc.html
+npx redoc-cli build graph-node-api.yaml --output doc/api/redoc.html
 ```
 
 ### Swagger UI
 ```bash
-npx swagger-ui-dist-cli -f graph-node-api.yaml -d docs/api/swagger/
+npx swagger-ui-dist-cli -f graph-node-api.yaml -d doc/api/swagger/
 ```
 
 ### OpenAPI Generator with Other Templates
@@ -162,7 +162,7 @@ npx swagger-ui-dist-cli -f graph-node-api.yaml -d docs/api/swagger/
 npx @openapitools/openapi-generator-cli list
 
 # Use different template
-npx @openapitools/openapi-generator-cli generate -i graph-node-api.yaml -g html -o docs/api-simple/
+npx @openapitools/openapi-generator-cli generate -i graph-node-api.yaml -g html -o doc/api-simple/
 ```
 
 ## Troubleshooting
@@ -184,24 +184,24 @@ npm install -g @openapitools/openapi-generator-cli
 **Browser not opening**
 ```bash
 # Open manually
-open docs/api/index.html  # macOS
-start docs/api/index.html # Windows  
-xdg-open docs/api/index.html # Linux
+open doc/api/index.html  # macOS
+start doc/api/index.html # Windows
+xdg-open doc/api/index.html # Linux
 ```
 
 **Documentation not updating**
 ```bash
 # Clean and regenerate
-dart docs/docs.dart clean
-dart docs/docs.dart generate
+dart doc/docs.dart clean
+dart doc/docs.dart generate
 ```
 
 ### Getting Help
 
 ```bash
 # Show all available commands
-dart docs/docs.dart help
+dart doc/docs.dart help
 
 # Check script directly
-dart docs/generate_docs.dart --help
+dart doc/generate_docs.dart --help
 ``` 

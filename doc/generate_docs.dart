@@ -15,7 +15,7 @@ import 'dart:io';
 ///   - Install with: npm install -g @openapitools/openapi-generator-cli
 Future<void> main(List<String> args) async {
   const specFile = 'graph-node-api.yaml';
-  const outputDir = 'docs/api';
+  const outputDir = 'doc/api';
 
   print('🚀 Generating API documentation...');
   print('📄 OpenAPI spec: $specFile');

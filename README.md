@@ -103,15 +103,15 @@ Generate interactive HTML documentation:
 
 ```bash
 # Easy way - using the docs manager
-dart docs/docs.dart generate  # Generate docs
-dart docs/docs.dart open      # Open in browser
+dart doc/docs.dart generate  # Generate docs
+dart doc/docs.dart open      # Open in browser
 
 # Direct method
-dart docs/generate_docs.dart  # Generate docs (requires Node.js)
-# Then open docs/api/index.html in your browser
+dart doc/generate_docs.dart  # Generate docs (requires Node.js)
+# Then open doc/api/index.html in your browser
 ```
 
-See [docs/API_DOCS.md](./docs/API_DOCS.md) for complete documentation automation guide.
+See [doc/API_DOCS.md](./doc/API_DOCS.md) for complete documentation automation guide.
 
 ---
 

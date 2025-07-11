@@ -54,7 +54,7 @@ Future<void> main(List<String> args) async {
 void _showHelp() {
   print('📚 KISS Graph Documentation Manager');
   print('');
-  print('Usage: dart docs/docs.dart <command>');
+  print('Usage: dart doc/docs.dart <command>');
   print('');
   print('Commands:');
   print('  generate, gen    Generate API documentation from OpenAPI spec');
@@ -63,9 +63,9 @@ void _showHelp() {
   print('  help, h          Show this help message');
   print('');
   print('Examples:');
-  print('  dart docs/docs.dart generate');
-  print('  dart docs/docs.dart open');
-  print('  dart docs/docs.dart clean');
+  print('  dart doc/docs.dart generate');
+  print('  dart doc/docs.dart open');
+  print('  dart doc/docs.dart clean');
   print('');
   print('Requirements for generate:');
   print('  - Node.js and npm');
@@ -77,13 +77,13 @@ void _showHelp() {
 Future<void> _generateDocs() async {
   print('🚀 Generating API documentation...');
 
-  final result = await Process.run('dart', ['docs/generate_docs.dart']);
+  final result = await Process.run('dart', ['doc/generate_docs.dart']);
 
   if (result.exitCode == 0) {
     print('');
     print('✅ Documentation generated successfully!');
-    print('📖 Open: docs/api/index.html');
-    print('💡 Run: dart docs/docs.dart open');
+    print('📖 Open: doc/api/index.html');
+    print('💡 Run: dart doc/docs.dart open');
   } else {
     print('❌ Failed to generate documentation');
     if (result.stderr.toString().trim().isNotEmpty) {
@@ -95,7 +95,7 @@ Future<void> _generateDocs() async {
 
 /// Opens documentation in the default browser
 Future<void> _openDocs() async {
-  const docsFile = 'docs/api/index.html';
+  const docsFile = 'doc/api/index.html';
 
   final file = File(docsFile);
   if (!await file.exists()) {
@@ -133,7 +133,7 @@ Future<void> _openDocs() async {
 
 /// Cleans generated documentation
 Future<void> _cleanDocs() async {
-  const docsDir = 'docs/api';
+  const docsDir = 'doc/api';
 
   print('🧹 Cleaning generated documentation...');
 

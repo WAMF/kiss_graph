@@ -29,7 +29,7 @@ lib/
 └── services/
     └── node_service.dart               # Business logic layer
 
-docs/
+doc/
 ├── docs.dart                          # Documentation management utility
 ├── generate_docs.dart                 # OpenAPI documentation generator
 ├── API_DOCS.md                        # Documentation automation guide
