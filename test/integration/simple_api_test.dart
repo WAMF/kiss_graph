@@ -251,7 +251,7 @@ void main() {
       );
       final response1 = await app(request1);
       final body1 = await response1.readAsString();
-      final node1 = jsonDecode(body1);
+      final node1 = jsonDecode(body1) as Map<String, dynamic>;
       createdNodes.add(node1);
 
       // Create second node as child of first (will get path "1.1")
@@ -266,7 +266,7 @@ void main() {
       );
       final response2 = await app(request2);
       final body2 = await response2.readAsString();
-      final node2 = jsonDecode(body2);
+      final node2 = jsonDecode(body2) as Map<String, dynamic>;
       createdNodes.add(node2);
 
       // Create third node as another child of first (will get path "1.2")
@@ -281,7 +281,7 @@ void main() {
       );
       final response3 = await app(request3);
       final body3 = await response3.readAsString();
-      final node3 = jsonDecode(body3);
+      final node3 = jsonDecode(body3) as Map<String, dynamic>;
       createdNodes.add(node3);
 
       // Query for nodes with '1' prefix (should get nodes with paths starting with "1")
