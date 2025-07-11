@@ -1,4 +1,4 @@
-import '../graph-node-api.openapi.dart';
+import '../api/graph-node-api.openapi.dart';
 
 /// Extensions for OpenAPI Node model to add business logic capabilities
 extension NodeExtensions on Node {
@@ -10,8 +10,8 @@ extension NodeExtensions on Node {
     if (root == null || root!.isEmpty) {
       throw ArgumentError('Node root cannot be null or empty');
     }
-    if (spatialHash == null || spatialHash!.isEmpty) {
-      throw ArgumentError('Node spatialHash cannot be null or empty');
+    if (pathHash == null || pathHash!.isEmpty) {
+      throw ArgumentError('Node pathHash cannot be null or empty');
     }
     if (content == null) {
       throw ArgumentError('Node content cannot be null');
@@ -34,12 +34,12 @@ extension NodeExtensions on Node {
     return root!;
   }
 
-  /// Get the spatialHash with validation (throws if null)
-  String get validSpatialHash {
-    if (spatialHash == null || spatialHash!.isEmpty) {
-      throw StateError('Node spatialHash is null or empty');
+  /// Get the pathHash with validation (throws if null)
+  String get validPathHash {
+    if (pathHash == null || pathHash!.isEmpty) {
+      throw StateError('Node pathHash is null or empty');
     }
-    return spatialHash!;
+    return pathHash!;
   }
 
   /// Get the content as a Map<String, dynamic>
@@ -53,7 +53,7 @@ extension NodeExtensions on Node {
     String? id,
     String? root,
     String? previous,
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     final newContent = NodeContent();
@@ -66,7 +66,7 @@ extension NodeExtensions on Node {
       id: id ?? this.id,
       root: root ?? this.root,
       previous: previous ?? this.previous,
-      spatialHash: spatialHash ?? this.spatialHash,
+      pathHash: pathHash ?? this.pathHash,
       content: newContent,
     );
   }
@@ -76,7 +76,7 @@ extension NodeExtensions on Node {
     required String id,
     required String root,
     String? previous,
-    required String spatialHash,
+    required String pathHash,
     required Map<String, dynamic> content,
   }) {
     final nodeContent = NodeContent();
@@ -88,7 +88,7 @@ extension NodeExtensions on Node {
       id: id,
       root: root,
       previous: previous,
-      spatialHash: spatialHash,
+      pathHash: pathHash,
       content: nodeContent,
     );
 
@@ -124,8 +124,8 @@ extension NodeContentExtensions on NodeContent {
 extension NodeCreateExtensions on NodeCreate {
   /// Validates NodeCreate
   void validate() {
-    if (spatialHash.isEmpty) {
-      throw ArgumentError('NodeCreate spatialHash cannot be empty');
+    if (pathHash != null && pathHash!.isEmpty) {
+      throw ArgumentError('NodeCreate pathHash cannot be empty');
     }
     if (content.additionalProperties.isEmpty) {
       throw ArgumentError('NodeCreate content cannot be empty');
@@ -140,12 +140,12 @@ extension NodeCreateExtensions on NodeCreate {
   /// Create NodeCreate from basic parameters
   static NodeCreate create({
     String? previous,
-    required String spatialHash,
+    String? pathHash,
     required Map<String, dynamic> content,
   }) {
     final nodeCreate = NodeCreate(
       previous: previous ?? '',
-      spatialHash: spatialHash,
+      pathHash: pathHash,
       content: NodeCreateContentExtensions.fromMap(content),
     );
 
@@ -175,11 +175,11 @@ extension NodeCreateContentExtensions on NodeCreateContent {
 extension NodeUpdateExtensions on NodeUpdate {
   /// Create NodeUpdate from basic parameters
   static NodeUpdate create({
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     return NodeUpdate(
-      spatialHash: spatialHash,
+      pathHash: pathHash,
       content:
           content != null ? NodeUpdateContentExtensions.fromMap(content) : null,
     );
@@ -200,5 +200,75 @@ extension NodeUpdateContentExtensions on NodeUpdateContent {
   /// Convert to Map<String, dynamic>
   Map<String, dynamic> toMap() {
     return additionalProperties.cast<String, dynamic>();
+  }
+}
+
+/// Utility class for generating hierarchical path hashes for breadcrumb navigation
+class PathHashGenerator {
+  /// Generates the root path hash for a new root node
+  static String generateRootPath() {
+    return '1';
+  }
+
+  /// Generates a child path hash based on parent's path and child position
+  /// Examples:
+  /// - First child of root "1" becomes "1.1"
+  /// - Second child of root "1" becomes "1.2"
+  /// - First child of "1.1" becomes "1.1.1"
+  static String generateChildPath(String parentPath, int childPosition) {
+    if (childPosition < 1) {
+      throw ArgumentError('Child position must be 1 or greater');
+    }
+    return '$parentPath.$childPosition';
+  }
+
+  /// Extracts the parent path from a child path
+  /// Examples:
+  /// - "1.1.2" returns "1.1"
+  /// - "1.1" returns "1"
+  /// - "1" returns null (root has no parent)
+  static String? getParentPath(String childPath) {
+    final lastDotIndex = childPath.lastIndexOf('.');
+    if (lastDotIndex == -1) {
+      return null; // Root node has no parent
+    }
+    return childPath.substring(0, lastDotIndex);
+  }
+
+  /// Gets the depth level of a path (number of dots + 1)
+  /// Examples:
+  /// - "1" returns 1 (root level)
+  /// - "1.1" returns 2 (first child level)
+  /// - "1.1.1" returns 3 (grandchild level)
+  static int getPathDepth(String path) {
+    return path.split('.').length;
+  }
+
+  /// Gets all ancestor paths for breadcrumb navigation
+  /// Examples:
+  /// - "1.1.2" returns ["1", "1.1", "1.1.2"]
+  /// - "1" returns ["1"]
+  static List<String> getAncestorPaths(String path) {
+    final parts = path.split('.');
+    final ancestors = <String>[];
+
+    for (int i = 1; i <= parts.length; i++) {
+      ancestors.add(parts.take(i).join('.'));
+    }
+
+    return ancestors;
+  }
+
+  /// Validates if a path hash follows the correct hierarchical format
+  static bool isValidPathHash(String pathHash) {
+    if (pathHash.isEmpty) return false;
+
+    final parts = pathHash.split('.');
+    for (final part in parts) {
+      if (part.isEmpty || int.tryParse(part) == null || int.parse(part) < 1) {
+        return false;
+      }
+    }
+    return true;
   }
 }

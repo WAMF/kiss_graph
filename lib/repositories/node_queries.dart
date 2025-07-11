@@ -1,6 +1,6 @@
 import 'package:kiss_repository/kiss_repository.dart';
 
-import '../graph-node-api.openapi.dart';
+import '../api/graph-node-api.openapi.dart';
 
 class NodeChildrenQuery extends Query {
   final String parentId;
@@ -17,19 +17,19 @@ class NodeChildrenQuery extends Query {
   int get hashCode => parentId.hashCode;
 }
 
-class NodeSpatialQuery extends Query {
-  final String spatialPrefix;
+class NodePathQuery extends Query {
+  final String pathPrefix;
 
-  const NodeSpatialQuery(this.spatialPrefix);
+  const NodePathQuery(this.pathPrefix);
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is NodeSpatialQuery && other.spatialPrefix == spatialPrefix;
+    return other is NodePathQuery && other.pathPrefix == pathPrefix;
   }
 
   @override
-  int get hashCode => spatialPrefix.hashCode;
+  int get hashCode => pathPrefix.hashCode;
 }
 
 class NodeRootQuery extends Query {
@@ -55,9 +55,9 @@ class NodeQueryBuilder implements QueryBuilder<InMemoryFilterQuery<Node>> {
           (node) => node.previous == query.parentId);
     }
 
-    if (query is NodeSpatialQuery) {
+    if (query is NodePathQuery) {
       return InMemoryFilterQuery<Node>(
-          (node) => node.spatialHash?.startsWith(query.spatialPrefix) ?? false);
+          (node) => node.pathHash?.startsWith(query.pathPrefix) ?? false);
     }
 
     if (query is NodeRootQuery) {

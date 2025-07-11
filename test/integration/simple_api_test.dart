@@ -1,25 +1,33 @@
 import 'dart:convert';
 
-import 'package:kiss_graph/main.dart';
-import 'package:shelf/shelf.dart';
+import 'package:kiss_graph/kiss_graph.dart';
+import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('Simple API Integration Tests', () {
     late Handler app;
+    late GraphApiConfiguration config;
 
     setUp(() {
-      app = init();
+      final router = Router().plus;
+
+      config = GraphApiConfiguration.withInMemoryRepository();
+      config.setupRoutes(router);
+
+      app = router.call;
+    });
+
+    tearDown(() {
+      config.dispose();
     });
 
     test('should create and retrieve a node', () async {
-      // Create a node using POST
       final createRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'test123',
           'content': {'name': 'Test Node', 'description': 'A test node'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -32,10 +40,8 @@ void main() {
       final createdNode = jsonDecode(createBody);
 
       expect(createdNode['id'], isNotEmpty);
-      expect(createdNode['spatialHash'], equals('test123'));
+      expect(createdNode['pathHash'], equals('1'));
       expect(createdNode['content']['name'], equals('Test Node'));
-
-      // Retrieve the node using GET
       final getRequest = Request(
         'GET',
         Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
@@ -48,18 +54,16 @@ void main() {
       final retrievedNode = jsonDecode(getBody);
 
       expect(retrievedNode['id'], equals(createdNode['id']));
-      expect(retrievedNode['spatialHash'], equals('test123'));
+      expect(retrievedNode['pathHash'], equals('1'));
       expect(retrievedNode['content']['name'], equals('Test Node'));
     });
 
     test('should create a parent-child relationship', () async {
-      // Create parent node
       final parentRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'parent123',
           'content': {'type': 'parent'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -70,14 +74,11 @@ void main() {
 
       final parentBody = await parentResponse.readAsString();
       final parent = jsonDecode(parentBody);
-
-      // Create child node
       final childRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': parent['id'],
-          'spatialHash': 'child123',
           'content': {'type': 'child'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -90,10 +91,9 @@ void main() {
       final child = jsonDecode(childBody);
 
       expect(child['previous'], equals(parent['id']));
-      expect(child['root'], equals(parent['root'])); // Should inherit root
+      expect(child['root'], equals(parent['root']));
+      expect(child['pathHash'], equals('1.1'));
       expect(child['content']['type'], equals('child'));
-
-      // Get children of parent
       final childrenRequest = Request(
         'GET',
         Uri.parse('http://localhost:8080/nodes/${parent['id']}/children'),
@@ -111,13 +111,11 @@ void main() {
     });
 
     test('should update a node', () async {
-      // Create a node first
       final createRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'update123',
           'content': {'status': 'original'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -126,13 +124,11 @@ void main() {
       final createResponse = await app(createRequest);
       final createBody = await createResponse.readAsString();
       final createdNode = jsonDecode(createBody);
-
-      // Update the node
       final updateRequest = Request(
         'PATCH',
         Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
         body: jsonEncode({
-          'spatialHash': 'updated123',
+          'pathHash': 'updated-path',
           'content': {'status': 'updated', 'new': 'field'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -145,19 +141,17 @@ void main() {
       final updatedNode = jsonDecode(updateBody);
 
       expect(updatedNode['id'], equals(createdNode['id']));
-      expect(updatedNode['spatialHash'], equals('updated123'));
+      expect(updatedNode['pathHash'], equals('updated-path'));
       expect(updatedNode['content']['status'], equals('updated'));
       expect(updatedNode['content']['new'], equals('field'));
     });
 
     test('should delete a node', () async {
-      // Create a node first
       final createRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'delete123',
           'content': {'temp': 'node'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -166,8 +160,6 @@ void main() {
       final createResponse = await app(createRequest);
       final createBody = await createResponse.readAsString();
       final createdNode = jsonDecode(createBody);
-
-      // Delete the node
       final deleteRequest = Request(
         'DELETE',
         Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
@@ -175,8 +167,6 @@ void main() {
 
       final deleteResponse = await app(deleteRequest);
       expect(deleteResponse.statusCode, equals(204));
-
-      // Verify node is gone
       final getRequest = Request(
         'GET',
         Uri.parse('http://localhost:8080/nodes/${createdNode['id']}'),
@@ -187,13 +177,11 @@ void main() {
     });
 
     test('should trace a node path', () async {
-      // Create a chain of nodes
       final rootRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'root123',
           'content': {'level': 0}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -208,7 +196,6 @@ void main() {
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': root['id'],
-          'spatialHash': 'child1123',
           'content': {'level': 1}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -218,7 +205,7 @@ void main() {
       final child1Body = await child1Response.readAsString();
       final child1 = jsonDecode(child1Body);
 
-      // Trace from child1 back to root
+      // Trace from child back to root
       final traceRequest = Request(
         'GET',
         Uri.parse('http://localhost:8080/nodes/${child1['id']}/trace'),
@@ -231,64 +218,91 @@ void main() {
       final trace = jsonDecode(traceBody);
 
       expect(trace, isA<List>());
-      expect(trace.length, equals(2));
-      expect(trace[0]['id'], equals(child1['id'])); // Starts with child1
-      expect(trace[1]['id'], equals(root['id'])); // Ends with root
+      expect(trace.length, equals(2)); // child1 and root
+      expect(trace[0]['id'], equals(child1['id'])); // First should be child1
+      expect(trace[1]['id'], equals(root['id'])); // Second should be root
     });
 
-    test('should query nodes by spatial prefix', () async {
-      // Create nodes with different spatial hashes
+    test('should query nodes by path prefix', () async {
+      // Create nodes with different path hashes
       final requests = [
         {
-          'spatialHash': 'abc123',
           'content': {'region': 'North'}
         },
         {
-          'spatialHash': 'abc456',
           'content': {'region': 'North-East'}
         },
         {
-          'spatialHash': 'def789',
           'content': {'region': 'South'}
         },
       ];
 
       final createdNodes = <Map<String, dynamic>>[];
-      for (final requestData in requests) {
-        final request = Request(
-          'POST',
-          Uri.parse('http://localhost:8080/nodes'),
-          body: jsonEncode({
-            'previous': '',
-            ...requestData,
-          }),
-          headers: {'Content-Type': 'application/json'},
-        );
 
-        final response = await app(request);
-        final body = await response.readAsString();
-        createdNodes.add(jsonDecode(body));
-      }
+      // Create first node (will get path "1")
+      final request1 = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          ...requests[0],
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+      final response1 = await app(request1);
+      final body1 = await response1.readAsString();
+      final node1 = jsonDecode(body1);
+      createdNodes.add(node1);
 
-      // Query for nodes with 'abc' prefix
-      final spatialRequest = Request(
+      // Create second node as child of first (will get path "1.1")
+      final request2 = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': node1['id'],
+          ...requests[1],
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+      final response2 = await app(request2);
+      final body2 = await response2.readAsString();
+      final node2 = jsonDecode(body2);
+      createdNodes.add(node2);
+
+      // Create third node as another child of first (will get path "1.2")
+      final request3 = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': node1['id'], // Make it a child of node1
+          ...requests[2],
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+      final response3 = await app(request3);
+      final body3 = await response3.readAsString();
+      final node3 = jsonDecode(body3);
+      createdNodes.add(node3);
+
+      // Query for nodes with '1' prefix (should get nodes with paths starting with "1")
+      final pathRequest = Request(
         'GET',
-        Uri.parse('http://localhost:8080/nodes/spatial/abc'),
+        Uri.parse('http://localhost:8080/nodes/path/1'),
       );
 
-      final spatialResponse = await app(spatialRequest);
-      expect(spatialResponse.statusCode, equals(200));
+      final pathResponse = await app(pathRequest);
+      expect(pathResponse.statusCode, equals(200));
 
-      final spatialBody = await spatialResponse.readAsString();
-      final spatialNodes = jsonDecode(spatialBody);
+      final pathBody = await pathResponse.readAsString();
+      final pathNodes = jsonDecode(pathBody);
 
-      expect(spatialNodes, isA<List>());
-      expect(spatialNodes.length, equals(2)); // abc123 and abc456
+      expect(pathNodes, isA<List>());
+      expect(pathNodes.length, equals(3)); // Should get "1", "1.1", and "1.2"
 
-      final spatialHashes =
-          spatialNodes.map((node) => node['spatialHash']).toList();
-      expect(spatialHashes, containsAll(['abc123', 'abc456']));
-      expect(spatialHashes, isNot(contains('def789')));
+      final pathHashes = pathNodes.map((node) => node['pathHash']).toList();
+      expect(pathHashes, contains('1'));
+      expect(pathHashes, contains('1.1'));
+      expect(pathHashes, contains('1.2'));
     });
 
     test('should handle 404 for non-existent node', () async {
@@ -303,13 +317,12 @@ void main() {
 
     test('should handle 409 when trying to delete node with children',
         () async {
-      // Create parent node
+      // Create parent
       final parentRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': '',
-          'spatialHash': 'parent123',
           'content': {'type': 'parent'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -319,13 +332,12 @@ void main() {
       final parentBody = await parentResponse.readAsString();
       final parent = jsonDecode(parentBody);
 
-      // Create child node
+      // Create child
       final childRequest = Request(
         'POST',
         Uri.parse('http://localhost:8080/nodes'),
         body: jsonEncode({
           'previous': parent['id'],
-          'spatialHash': 'child123',
           'content': {'type': 'child'}
         }),
         headers: {'Content-Type': 'application/json'},
@@ -333,7 +345,7 @@ void main() {
 
       await app(childRequest);
 
-      // Try to delete parent (should fail)
+      // Try to delete parent - should fail with 409
       final deleteRequest = Request(
         'DELETE',
         Uri.parse('http://localhost:8080/nodes/${parent['id']}'),
@@ -341,6 +353,70 @@ void main() {
 
       final deleteResponse = await app(deleteRequest);
       expect(deleteResponse.statusCode, equals(409));
+    });
+
+    test('should get breadcrumbs for a node', () async {
+      // Create a hierarchy: root -> child -> grandchild
+      final rootRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': '',
+          'content': {'name': 'Root'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final rootResponse = await app(rootRequest);
+      final rootBody = await rootResponse.readAsString();
+      final root = jsonDecode(rootBody);
+
+      final childRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': root['id'],
+          'content': {'name': 'Child'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final childResponse = await app(childRequest);
+      final childBody = await childResponse.readAsString();
+      final child = jsonDecode(childBody);
+
+      final grandchildRequest = Request(
+        'POST',
+        Uri.parse('http://localhost:8080/nodes'),
+        body: jsonEncode({
+          'previous': child['id'],
+          'content': {'name': 'Grandchild'}
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final grandchildResponse = await app(grandchildRequest);
+      final grandchildBody = await grandchildResponse.readAsString();
+      final grandchild = jsonDecode(grandchildBody);
+
+      // Get breadcrumbs for the grandchild
+      final breadcrumbsRequest = Request(
+        'GET',
+        Uri.parse(
+            'http://localhost:8080/nodes/${grandchild['id']}/breadcrumbs'),
+      );
+
+      final breadcrumbsResponse = await app(breadcrumbsRequest);
+      expect(breadcrumbsResponse.statusCode, equals(200));
+
+      final breadcrumbsBody = await breadcrumbsResponse.readAsString();
+      final breadcrumbs = jsonDecode(breadcrumbsBody);
+
+      expect(breadcrumbs, isA<List>());
+      expect(breadcrumbs.length, equals(3)); // root, child, grandchild
+
+      final names = breadcrumbs.map((node) => node['content']['name']).toList();
+      expect(names, containsAll(['Root', 'Child', 'Grandchild']));
     });
   });
 }

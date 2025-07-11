@@ -1,4 +1,4 @@
-import 'package:kiss_graph/graph-node-api.openapi.dart';
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 import 'package:kiss_graph/models/node_extensions.dart';
 import 'package:kiss_graph/repositories/node_queries.dart';
 import 'package:kiss_repository/kiss_repository.dart';
@@ -25,7 +25,7 @@ void main() {
       test('should add a node', () async {
         final node = TestData.createRootNode();
 
-        node.validate(); // Ensure node has valid required fields
+        node.validate();
         final addedNode =
             await repository.add(IdentifiedObject(node.validId, node));
         expect(addedNode.validId, equals(node.validId));
@@ -49,12 +49,12 @@ void main() {
 
         final updated = await repository.update(node.validId, (current) {
           return current.copyWith(
-            spatialHash: 'updated-hash',
+            pathHash: 'updated-hash',
             content: {'updated': 'content'},
           );
         });
 
-        expect(updated.validSpatialHash, equals('updated-hash'));
+        expect(updated.validPathHash, equals('updated-hash'));
         expect(updated.contentMap['updated'], equals('content'));
       });
 
@@ -81,7 +81,7 @@ void main() {
 
     group('Batch Operations', () {
       test('should add multiple nodes', () async {
-        final nodes = TestData.createSpatialNodes();
+        final nodes = TestData.createPathNodes();
 
         final futures = nodes.map((node) {
           node.validate();
@@ -106,14 +106,12 @@ void main() {
           TestData.createRootNode(id: 'concurrent-3'),
         ];
 
-        // Add all nodes concurrently
         final addFutures = nodes.map((node) {
           node.validate();
           return repository.add(IdentifiedObject(node.validId, node));
         });
         await Future.wait(addFutures);
 
-        // Retrieve all nodes concurrently
         final getFutures = nodes.map((node) => repository.get(node.validId));
         final retrievedNodes = await Future.wait(getFutures);
 
@@ -127,12 +125,10 @@ void main() {
 
     group('Children Query', () {
       test('should find children by parent ID', () async {
-        // Create parent
         final parent = TestData.createRootNode(id: 'parent-1');
         parent.validate();
         await repository.add(IdentifiedObject(parent.validId, parent));
 
-        // Create children
         final child1 = TestData.createChildNode(
           id: 'child-1',
           parentId: parent.validId,
@@ -174,41 +170,40 @@ void main() {
       });
     });
 
-    group('Spatial Queries', () {
-      test('should find nodes by spatial prefix', () async {
-        final spatialNodes = TestData.createSpatialNodes();
+    group('Path Queries', () {
+      test('should find nodes by path prefix', () async {
+        final pathNodes = TestData.createPathNodes();
 
-        for (final node in spatialNodes) {
+        for (final node in pathNodes) {
           node.validate();
           await repository.add(IdentifiedObject(node.validId, node));
         }
 
-        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
-        expect(abcNodes.length, equals(2));
+        final pathNodes1 = await repository.query(query: NodePathQuery('1'));
+        expect(pathNodes1.length, equals(2));
 
-        final spatialHashes =
-            abcNodes.map((node) => node.validSpatialHash).toList();
-        expect(spatialHashes.every((hash) => hash.startsWith('abc')), isTrue);
+        final pathHashes =
+            pathNodes1.map((node) => node.validPathHash).toList();
+        expect(pathHashes.every((hash) => hash.startsWith('1')), isTrue);
       });
 
       test('should return empty list for non-matching prefix', () async {
-        final node = TestData.createRootNode(spatialHash: 'xyz123');
+        final node = TestData.createRootNode(pathHash: '2.1');
         node.validate();
         await repository.add(IdentifiedObject(node.validId, node));
 
-        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
-        expect(abcNodes, isEmpty);
+        final path1Nodes = await repository.query(query: NodePathQuery('1'));
+        expect(path1Nodes, isEmpty);
       });
 
       test('should handle exact hash matches', () async {
-        final node = TestData.createRootNode(spatialHash: 'exact');
+        final node = TestData.createRootNode(pathHash: '1');
         node.validate();
         await repository.add(IdentifiedObject(node.validId, node));
 
-        final exactNodes =
-            await repository.query(query: NodeSpatialQuery('exact'));
+        final exactNodes = await repository.query(query: NodePathQuery('1'));
         expect(exactNodes.length, equals(1));
-        expect(exactNodes.first.validSpatialHash, equals('exact'));
+        expect(exactNodes.first.validPathHash, equals('1'));
       });
     });
 
@@ -323,20 +318,20 @@ void main() {
         }
       });
 
-      test('should handle mixed spatial and hierarchical queries', () async {
-        final spatialNodes = TestData.createSpatialNodes();
+      test('should handle mixed path and hierarchical queries', () async {
+        final pathNodes = TestData.createPathNodes();
 
-        for (final node in spatialNodes) {
+        for (final node in pathNodes) {
           node.validate();
           await repository.add(IdentifiedObject(node.validId, node));
         }
 
-        // Test spatial query
-        final abcNodes = await repository.query(query: NodeSpatialQuery('abc'));
-        expect(abcNodes.length, equals(2));
+        // Test path query
+        final pathNodes1 = await repository.query(query: NodePathQuery('1'));
+        expect(pathNodes1.length, equals(2));
 
-        // Test that spatial nodes are also in root queries
-        for (final node in spatialNodes) {
+        // Test that path nodes are also in root queries
+        for (final node in pathNodes) {
           final rootNodes = await repository.query(
               query: NodeRootQuery(node.validId)); // Each is its own root
           expect(rootNodes.length, equals(1));

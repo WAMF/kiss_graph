@@ -1,11 +1,11 @@
-import 'package:kiss_graph/graph-node-api.openapi.dart';
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 import 'package:kiss_graph/models/node_extensions.dart';
 
 /// Test data helpers for creating consistent test nodes
 class TestData {
   static Node createRootNode({
     String? id,
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     final nodeId = id ?? 'root-1';
@@ -13,7 +13,7 @@ class TestData {
       id: nodeId,
       root: nodeId,
       previous: null,
-      spatialHash: spatialHash ?? 'abc123',
+      pathHash: pathHash ?? '1',
       content: content ?? {'name': 'Root Node', 'type': 'root'},
     );
   }
@@ -22,36 +22,36 @@ class TestData {
     String? id,
     required String parentId,
     required String rootId,
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     return NodeExtensions.create(
       id: id ?? 'child-1',
       root: rootId,
       previous: parentId,
-      spatialHash: spatialHash ?? 'abc124',
+      pathHash: pathHash ?? '1.1',
       content: content ?? {'name': 'Child Node', 'type': 'child'},
     );
   }
 
   static NodeCreate createNodeCreate({
     String? previous,
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     return NodeCreateExtensions.create(
       previous: previous,
-      spatialHash: spatialHash ?? 'xyz789',
+      pathHash: pathHash,
       content: content ?? {'name': 'New Node', 'data': 42},
     );
   }
 
   static NodeUpdate createNodeUpdate({
-    String? spatialHash,
+    String? pathHash,
     Map<String, dynamic>? content,
   }) {
     return NodeUpdateExtensions.create(
-      spatialHash: spatialHash,
+      pathHash: pathHash,
       content: content,
     );
   }
@@ -69,7 +69,7 @@ class TestData {
         id: id,
         root: root,
         previous: previous,
-        spatialHash: 'chain$i',
+        pathHash: i == 0 ? '1' : '1.${'.' * (i - 1)}${i + 1}',
         content: {'index': i, 'name': 'Chain Node $i'},
       ));
     }
@@ -77,28 +77,28 @@ class TestData {
     return nodes;
   }
 
-  /// Creates nodes with common spatial prefixes for testing spatial queries
-  static List<Node> createSpatialNodes() {
+  /// Creates nodes with common path prefixes for testing path queries
+  static List<Node> createPathNodes() {
     return [
       NodeExtensions.create(
-        id: 'spatial-1',
-        root: 'spatial-1',
+        id: 'path-1',
+        root: 'path-1',
         previous: null,
-        spatialHash: 'abc123',
+        pathHash: '1',
         content: {'region': 'North'},
       ),
       NodeExtensions.create(
-        id: 'spatial-2',
-        root: 'spatial-2',
+        id: 'path-2',
+        root: 'path-2',
         previous: null,
-        spatialHash: 'abc456',
+        pathHash: '1.1',
         content: {'region': 'North-East'},
       ),
       NodeExtensions.create(
-        id: 'spatial-3',
-        root: 'spatial-3',
+        id: 'path-3',
+        root: 'path-3',
         previous: null,
-        spatialHash: 'def789',
+        pathHash: '2',
         content: {'region': 'South'},
       ),
     ];
@@ -111,8 +111,7 @@ class TestHelpers {
   static void validateNode(Node node) {
     assert(node.validId.isNotEmpty, 'Node ID should not be empty');
     assert(node.validRoot.isNotEmpty, 'Node root should not be empty');
-    assert(
-        node.validSpatialHash.isNotEmpty, 'Spatial hash should not be empty');
+    assert(node.validPathHash.isNotEmpty, 'Path hash should not be empty');
     assert(node.contentMap.isNotEmpty, 'Content should not be empty');
   }
 

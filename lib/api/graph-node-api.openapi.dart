@@ -5,7 +5,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:openapi_base/openapi_base.dart';
-
 part 'graph-node-api.openapi.g.dart';
 
 @JsonSerializable()
@@ -44,7 +43,7 @@ class Node implements OpenApiContent {
     this.id,
     this.root,
     this.previous,
-    this.spatialHash,
+    this.pathHash,
     this.content,
   });
 
@@ -67,10 +66,10 @@ class Node implements OpenApiContent {
   final String? previous;
 
   @JsonKey(
-    name: 'spatialHash',
+    name: 'pathHash',
     includeIfNull: false,
   )
-  final String? spatialHash;
+  final String? pathHash;
 
   @JsonKey(
     name: 'content',
@@ -118,7 +117,7 @@ class NodeCreateContent implements OpenApiContent {
 class NodeCreate implements OpenApiContent {
   const NodeCreate({
     required this.previous,
-    required this.spatialHash,
+    this.pathHash,
     required this.content,
   });
 
@@ -129,10 +128,10 @@ class NodeCreate implements OpenApiContent {
   final String previous;
 
   @JsonKey(
-    name: 'spatialHash',
+    name: 'pathHash',
     includeIfNull: false,
   )
-  final String spatialHash;
+  final String? pathHash;
 
   @JsonKey(
     name: 'content',
@@ -179,7 +178,7 @@ class NodeUpdateContent implements OpenApiContent {
 @ApiUuidJsonConverter()
 class NodeUpdate implements OpenApiContent {
   const NodeUpdate({
-    this.spatialHash,
+    this.pathHash,
     this.content,
   });
 
@@ -187,10 +186,10 @@ class NodeUpdate implements OpenApiContent {
       _$NodeUpdateFromJson(jsonMap);
 
   @JsonKey(
-    name: 'spatialHash',
+    name: 'pathHash',
     includeIfNull: false,
   )
-  final String? spatialHash;
+  final String? pathHash;
 
   @JsonKey(
     name: 'content',
@@ -601,10 +600,10 @@ sealed class NodesIdTraceGetResponse extends OpenApiResponse
   }
 }
 
-class NodesSpatialPrefixGetResponse200 extends NodesSpatialPrefixGetResponse
+class NodesPathPrefixGetResponse200 extends NodesPathPrefixGetResponse
     implements OpenApiResponseBodyJson {
   /// List of matching nodes
-  NodesSpatialPrefixGetResponse200.response200(this.body)
+  NodesPathPrefixGetResponse200.response200(this.body)
       : status = 200,
         bodyJson = {};
 
@@ -629,20 +628,20 @@ class NodesSpatialPrefixGetResponse200 extends NodesSpatialPrefixGetResponse
       };
 }
 
-sealed class NodesSpatialPrefixGetResponse extends OpenApiResponse
+sealed class NodesPathPrefixGetResponse extends OpenApiResponse
     implements HasSuccessResponse<List<Node>> {
-  NodesSpatialPrefixGetResponse();
+  NodesPathPrefixGetResponse();
 
   /// List of matching nodes
-  factory NodesSpatialPrefixGetResponse.response200(List<Node> body) =>
-      NodesSpatialPrefixGetResponse200.response200(body);
+  factory NodesPathPrefixGetResponse.response200(List<Node> body) =>
+      NodesPathPrefixGetResponse200.response200(body);
 
   R map<R>({
-    required ResponseMap<NodesSpatialPrefixGetResponse200, R> on200,
-    ResponseMap<NodesSpatialPrefixGetResponse, R>? onElse,
+    required ResponseMap<NodesPathPrefixGetResponse200, R> on200,
+    ResponseMap<NodesPathPrefixGetResponse, R>? onElse,
   }) {
-    if (this is NodesSpatialPrefixGetResponse200) {
-      return on200((this as NodesSpatialPrefixGetResponse200));
+    if (this is NodesPathPrefixGetResponse200) {
+      return on200((this as NodesPathPrefixGetResponse200));
     } else if (onElse != null) {
       return onElse(this);
     } else {
@@ -653,8 +652,8 @@ sealed class NodesSpatialPrefixGetResponse extends OpenApiResponse
   /// status 200:  List of matching nodes
   @override
   List<Node> requireSuccess() {
-    if (this is NodesSpatialPrefixGetResponse200) {
-      return (this as NodesSpatialPrefixGetResponse200).body;
+    if (this is NodesPathPrefixGetResponse200) {
+      return (this as NodesPathPrefixGetResponse200).body;
     } else {
       throw StateError('Expected success response, but got $this');
     }
@@ -674,7 +673,7 @@ abstract class GraphNodeApi implements ApiEndpoint {
   /// delete: /nodes/{id}
   Future<NodesIdDeleteResponse> nodesIdDelete({required String id});
 
-  /// Update a node (content or spatialHash only)
+  /// Update a node (content or pathHash only)
   /// patch: /nodes/{id}
   Future<NodesIdPatchResponse> nodesIdPatch(
     NodeUpdate body, {
@@ -689,9 +688,9 @@ abstract class GraphNodeApi implements ApiEndpoint {
   /// get: /nodes/{id}/trace
   Future<NodesIdTraceGetResponse> nodesIdTraceGet({required String id});
 
-  /// Get nodes by spatialHash prefix
-  /// get: /nodes/spatial/{prefix}
-  Future<NodesSpatialPrefixGetResponse> nodesSpatialPrefixGet(
+  /// Get nodes by pathHash prefix (breadcrumbs)
+  /// get: /nodes/path/{prefix}
+  Future<NodesPathPrefixGetResponse> nodesPathPrefixGet(
       {required String prefix});
 }
 
@@ -720,7 +719,7 @@ abstract class GraphNodeApiClient implements OpenApiClient {
   ///
   Future<NodesIdDeleteResponse> nodesIdDelete({required String id});
 
-  /// Update a node (content or spatialHash only)
+  /// Update a node (content or pathHash only)
   /// patch: /nodes/{id}
   ///
   Future<NodesIdPatchResponse> nodesIdPatch(
@@ -738,10 +737,10 @@ abstract class GraphNodeApiClient implements OpenApiClient {
   ///
   Future<NodesIdTraceGetResponse> nodesIdTraceGet({required String id});
 
-  /// Get nodes by spatialHash prefix
-  /// get: /nodes/spatial/{prefix}
+  /// Get nodes by pathHash prefix (breadcrumbs)
+  /// get: /nodes/path/{prefix}
   ///
-  Future<NodesSpatialPrefixGetResponse> nodesSpatialPrefixGet(
+  Future<NodesPathPrefixGetResponse> nodesPathPrefixGet(
       {required String prefix});
 }
 
@@ -834,7 +833,7 @@ class _GraphNodeApiClientImpl extends OpenApiClientBase
     );
   }
 
-  /// Update a node (content or spatialHash only)
+  /// Update a node (content or pathHash only)
   /// patch: /nodes/{id}
   ///
   @override
@@ -919,15 +918,15 @@ class _GraphNodeApiClientImpl extends OpenApiClientBase
     );
   }
 
-  /// Get nodes by spatialHash prefix
-  /// get: /nodes/spatial/{prefix}
+  /// Get nodes by pathHash prefix (breadcrumbs)
+  /// get: /nodes/path/{prefix}
   ///
   @override
-  Future<NodesSpatialPrefixGetResponse> nodesSpatialPrefixGet(
+  Future<NodesPathPrefixGetResponse> nodesPathPrefixGet(
       {required String prefix}) async {
     final request = OpenApiClientRequest(
       'get',
-      '/nodes/spatial/{prefix}',
+      '/nodes/path/{prefix}',
       [],
     );
     request.addPathParameter(
@@ -938,7 +937,7 @@ class _GraphNodeApiClientImpl extends OpenApiClientBase
       request,
       {
         '200': (OpenApiClientResponse response) async =>
-            NodesSpatialPrefixGetResponse200.response200((await response
+            NodesPathPrefixGetResponse200.response200((await response
                     .responseBodyJsonDynamic() as List<dynamic>)
                 .map((item) => Node.fromJson((item as Map<String, dynamic>)))
                 .toList())
@@ -992,7 +991,7 @@ class GraphNodeApiUrlResolve with OpenApiUrlEncodeMixin {
     return request;
   }
 
-  /// Update a node (content or spatialHash only)
+  /// Update a node (content or pathHash only)
   /// patch: /nodes/{id}
   ///
   OpenApiClientRequest nodesIdPatch({required String id}) {
@@ -1040,13 +1039,13 @@ class GraphNodeApiUrlResolve with OpenApiUrlEncodeMixin {
     return request;
   }
 
-  /// Get nodes by spatialHash prefix
-  /// get: /nodes/spatial/{prefix}
+  /// Get nodes by pathHash prefix (breadcrumbs)
+  /// get: /nodes/path/{prefix}
   ///
-  OpenApiClientRequest nodesSpatialPrefixGet({required String prefix}) {
+  OpenApiClientRequest nodesPathPrefixGet({required String prefix}) {
     final request = OpenApiClientRequest(
       'get',
-      '/nodes/spatial/{prefix}',
+      '/nodes/path/{prefix}',
       [],
     );
     request.addPathParameter(
@@ -1159,12 +1158,12 @@ class GraphNodeApiRouter extends OpenApiServerRouterBase {
       security: [],
     );
     addRoute(
-      '/nodes/spatial/{prefix}',
+      '/nodes/path/{prefix}',
       'get',
       (OpenApiRequest request) async {
         return await impl.invoke(
           request,
-          (GraphNodeApi impl) async => impl.nodesSpatialPrefixGet(
+          (GraphNodeApi impl) async => impl.nodesPathPrefixGet(
               prefix: paramRequired(
             name: 'prefix',
             value: request.pathParameter('prefix'),

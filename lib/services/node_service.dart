@@ -1,7 +1,7 @@
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:uuid/uuid.dart';
 
-import '../graph-node-api.openapi.dart';
+import '../api/graph-node-api.openapi.dart';
 import '../models/node_extensions.dart';
 import '../repositories/node_queries.dart';
 
@@ -12,31 +12,38 @@ class NodeService {
   NodeService(this._repository);
 
   Future<Node> createNode(NodeCreate nodeCreate) async {
-    nodeCreate.validate(); // Validate input
+    nodeCreate.validate();
 
     String id = _uuid.v4();
     String rootId = id;
+    String pathHash;
 
     final previousId = nodeCreate.validPrevious;
     if (previousId != null) {
       try {
         final parentNode = await _repository.get(previousId);
         rootId = parentNode.validRoot;
+
+        final parentPath = parentNode.validPathHash;
+        final siblingCount = await _getSiblingCount(previousId);
+        pathHash =
+            PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
       } catch (e) {
         throw Exception('Parent node not found: $previousId');
       }
+    } else {
+      pathHash = nodeCreate.pathHash ?? PathHashGenerator.generateRootPath();
     }
 
     final node = NodeExtensions.create(
       id: id,
       root: rootId,
       previous: previousId,
-      spatialHash: nodeCreate.spatialHash,
+      pathHash: pathHash,
       content: nodeCreate.content.toMap(),
     );
 
-    // Use generic repository interface
-    node.validate(); // Ensure node has valid required fields
+    node.validate();
     return await _repository.add(IdentifiedObject(node.validId, node));
   }
 
@@ -47,14 +54,13 @@ class NodeService {
   Future<Node> updateNode(String id, NodeUpdate nodeUpdate) async {
     return await _repository.update(id, (current) {
       return current.copyWith(
-        spatialHash: nodeUpdate.spatialHash ?? current.spatialHash,
+        pathHash: nodeUpdate.pathHash ?? current.pathHash,
         content: nodeUpdate.content?.toMap() ?? current.contentMap,
       );
     });
   }
 
   Future<void> deleteNode(String id) async {
-    // Business logic: prevent deletion of nodes with children
     final children = await _repository.query(query: NodeChildrenQuery(id));
     if (children.isNotEmpty) {
       throw RepositoryException(
@@ -77,7 +83,7 @@ class NodeService {
     while (currentId != null) {
       try {
         final node = await _repository.get(currentId);
-        node.validate(); // Ensure we have a valid node
+        node.validate();
         path.add(node);
         currentId = node.previous;
       } catch (e) {
@@ -92,8 +98,33 @@ class NodeService {
     return path;
   }
 
-  Future<List<Node>> getSpatialNodes(String spatialPrefix) async {
-    return await _repository.query(query: NodeSpatialQuery(spatialPrefix));
+  Future<List<Node>> getPathNodes(String pathPrefix) async {
+    return await _repository.query(query: NodePathQuery(pathPrefix));
+  }
+
+  /// Get all nodes in the breadcrumb path for a given node
+  Future<List<Node>> getBreadcrumbs(String nodeId) async {
+    final node = await _repository.get(nodeId);
+    final ancestorPaths =
+        PathHashGenerator.getAncestorPaths(node.validPathHash);
+
+    final breadcrumbs = <Node>[];
+    for (final path in ancestorPaths) {
+      final pathNodes = await _repository.query(query: NodePathQuery(path));
+      final exactMatch =
+          pathNodes.where((n) => n.validPathHash == path).firstOrNull;
+      if (exactMatch != null) {
+        breadcrumbs.add(exactMatch);
+      }
+    }
+
+    return breadcrumbs;
+  }
+
+  Future<int> _getSiblingCount(String parentId) async {
+    final children =
+        await _repository.query(query: NodeChildrenQuery(parentId));
+    return children.length;
   }
 
   Future<List<Node>> getNodesByRoot(String rootId) async {

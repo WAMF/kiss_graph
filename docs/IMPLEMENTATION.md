@@ -1,57 +1,67 @@
-# DART Service Implementation
+# KISS Graph Library Implementation
 
-This implementation provides a complete Graph Node Service using the specified KISS ecosystem packages.
+This document describes the implementation of the KISS Graph library, a reusable Dart package for managing graph-based nodes with spatial queries and dependency injection support.
 
 ## Architecture
 
-### Dependencies Used
+### Core Dependencies
 
-1. **shelf_plus** (`^1.6.0`) - Web framework for REST API endpoints
-2. **kiss_repository** (`^0.11.0`) - Repository pattern for data persistence
-3. **kiss** (`^0.0.1`) - KISS framework (minimal dependency injection)
-4. **openapi_code_builder** (`^1.6.0+2`) - API client generation from OpenAPI spec
+1. **kiss_repository** (`^0.11.0`) - Generic repository pattern for data persistence
+2. **shelf_plus** (`^1.6.0`) - Web framework for REST API endpoints  
+3. **json_annotation** (`^4.8.1`) - JSON serialization support
+4. **uuid** (`^4.1.0`) - Unique identifier generation
+5. **openapi_base** (`^2.0.0`) - OpenAPI model generation
 
-### Project Structure
+### Library Structure
 
 ```
 lib/
-├── main.dart                    # Application entry point
+├── kiss_graph.dart                    # Main library export file
+├── api/
+│   ├── graph_api_configuration.dart   # Dependency injection configuration
+│   ├── node_api_service.dart          # HTTP API service layer
+│   ├── graph-node-api.openapi.dart    # Generated OpenAPI models
+│   └── graph-node-api.openapi.g.dart  # Generated JSON serialization
 ├── models/
-│   ├── node.dart               # Node data model with JSON serialization
-│   └── node.g.dart             # Generated JSON serialization code
+│   └── node_extensions.dart           # Node model extensions
 ├── repositories/
-│   ├── node_queries.dart       # Query classes for repository filtering
-│   └── node_repository.dart    # Repository implementation
-├── services/
-│   └── node_service.dart       # Business logic layer
-├── controllers/
-│   └── node_controller.dart    # HTTP request/response handling
-└── graph-node-api.openapi.yaml # OpenAPI specification
+│   └── node_queries.dart              # Repository query implementations
+└── services/
+    └── node_service.dart               # Business logic layer
+
+docs/
+├── docs.dart                          # Documentation management utility
+├── generate_docs.dart                 # OpenAPI documentation generator
+├── API_DOCS.md                        # Documentation automation guide
+├── IMPLEMENTATION.md                  # Library implementation details
+└── TEST_README.md                     # Testing documentation
 ```
 
-## Key Features Implemented
+## Key Features
 
-### 1. Repository Pattern with kiss_repository
-- **NodeRepository**: Wraps the kiss_repository with domain-specific methods
-- **Custom Queries**: NodeChildrenQuery, NodeSpatialQuery, NodeRootQuery
-- **In-Memory Storage**: Using InMemoryRepository for demo purposes
-- **Streaming Support**: Real-time updates via streams
+### 1. Dependency Injection with GraphApiConfiguration
+- **Repository Agnostic**: Works with any `Repository<Node>` implementation
+- **Factory Methods**: `withInMemoryRepository()` for quick setup
+- **Custom Injection**: `GraphApiConfiguration(repository: customRepo)`
+- **Resource Management**: Built-in disposal of streams and connections
 
-### 2. REST API with shelf_plus
-- **HTTP Endpoints**: All endpoints from the OpenAPI spec
-- **Middleware**: Logging middleware for request tracking
-- **Error Handling**: Proper HTTP status codes and JSON error responses
-- **Path Parameters**: Using shelf_plus path parameter extraction
+### 2. Repository Pattern Integration
+- **Generic Interface**: Uses `Repository<Node>` from kiss_repository
+- **Custom Queries**: `NodeChildrenQuery`, `NodePathQuery`, `NodeRootQuery`
+- **Query Builder**: `NodeQueryBuilder` for filtering operations
+- **Multiple Backends**: InMemory, Firebase, PocketBase, DynamoDB support
 
-### 3. Dependency Management
-- **Simple DI**: Manual dependency injection in main.dart
-- **Layered Architecture**: Controller → Service → Repository
-- **Resource Cleanup**: Proper disposal of repositories
+### 3. REST API Service Layer
+- **HTTP Endpoints**: Complete CRUD operations via `NodeApiService`
+- **Middleware Support**: Integration with shelf_plus middleware
+- **Error Handling**: Proper HTTP status codes and JSON responses
+- **Route Setup**: One-line route configuration with `setupRoutes()`
 
-### 4. OpenAPI Code Generation
-- **Schema Definition**: Complete OpenAPI 3.0 spec
-- **Generated Models**: Automatic DTO generation with json_serializable
-- **Build Integration**: Using build_runner for code generation
+### 4. Business Logic Service
+- **Node Management**: Creation, updates, deletion with validation
+- **Hierarchical Structure**: Parent-child relationships with path generation
+- **Path Tracing**: Trace ancestry back to root nodes
+- **Spatial Queries**: Query by pathHash prefix for geographic-style lookups
 
 ## API Endpoints
 
@@ -59,100 +69,150 @@ lib/
 |--------|------|-------------|
 | POST | `/nodes` | Create a new node |
 | GET | `/nodes/{id}` | Get node by ID |
-| PATCH | `/nodes/{id}` | Update node content/spatialHash |
+| PATCH | `/nodes/{id}` | Update node pathHash/content |
 | DELETE | `/nodes/{id}` | Delete node (fails if has children) |
 | GET | `/nodes/{id}/children` | Get direct children |
 | GET | `/nodes/{id}/trace` | Trace path to root |
-| GET | `/nodes/spatial/{prefix}` | Query by spatialHash prefix |
+| GET | `/nodes/{id}/breadcrumbs` | Get breadcrumb path |
+| GET | `/nodes/path/{prefix}` | Query by pathHash prefix |
 
-## Running the Service
-
-1. **Install Dependencies**:
-   ```bash
-   dart pub get
-   ```
-
-2. **Generate Code**:
-   ```bash
-   dart run build_runner build --delete-conflicting-outputs
-   ```
-
-3. **Start Server**:
-   ```bash
-   dart run lib/main.dart
-   ```
-
-4. **Test API**:
-   ```bash
-   dart run test_api.dart
-   ```
-
-The service runs on `http://localhost:8080`
-
-## Node Data Structure
+## Node Data Model
 
 ```dart
 class Node {
   final String id;           // Unique identifier (UUID)
   final String root;         // Root node ID of the graph
   final String? previous;    // Parent node ID (null for root)
-  final String spatialHash;  // Spatial prefix for geospatial queries
+  final String pathHash;     // Hierarchical path for spatial queries
   final Map<String, dynamic> content; // Arbitrary JSON content
 }
 ```
 
-## Business Logic
+## Usage Patterns
+
+### 1. Simple Setup (In-Memory Repository)
+```dart
+import 'package:kiss_graph/kiss_graph.dart';
+import 'package:shelf_plus/shelf_plus.dart';
+
+Handler init() {
+  final app = Router().plus;
+  final config = GraphApiConfiguration.withInMemoryRepository();
+  
+  config.setupRoutes(app);
+  return app.call;
+}
+```
+
+### 2. Custom Repository Injection
+```dart
+import 'package:kiss_graph/kiss_graph.dart';
+
+final customRepository = FirebaseRepository<Node>(
+  // Firebase configuration
+);
+
+final config = GraphApiConfiguration(repository: customRepository);
+final nodeService = config.nodeService;
+```
+
+### 3. Manual Dependency Injection
+```dart
+final repository = InMemoryRepository<Node>(
+  queryBuilder: NodeQueryBuilder(),
+  path: 'nodes',
+);
+
+final nodeService = NodeService(repository);
+final apiService = NodeApiService(nodeService);
+```
+
+## Business Logic Implementation
 
 ### Node Creation
-- Generates UUID for new nodes
-- Sets root ID (same as node ID for root nodes, inherited for children)
-- Validates parent node exists for non-root nodes
+- Generates UUID for new nodes using `uuid` package
+- Establishes root relationships (self-referencing for roots)
+- Validates parent node existence for child nodes
+- Generates hierarchical pathHash for spatial indexing
 
-### Spatial Queries
-- Supports prefix matching on spatialHash field
-- Useful for geohash-style spatial indexing
+### Path Hash Generation
+- Root nodes get simple sequential paths: `"1"`, `"2"`, etc.
+- Child nodes extend parent paths: `"1.1"`, `"1.2"`, `"1.1.1"`
+- Enables efficient prefix-based spatial queries
+- Supports breadcrumb navigation through ancestor paths
 
-### Path Tracing
-- Follows parent chain back to root
-- Returns ordered list from current node to root
-- Handles broken chains gracefully
+### Deletion Rules
+- Prevents deletion of nodes with children (business rule)
+- Returns proper HTTP 409 Conflict for attempted violations
+- Allows deletion of leaf nodes only
+- Maintains graph integrity
 
-### Child Management
-- Prevents deletion of nodes with children
-- Supports querying direct children only
+### Error Handling
+- **404**: Node not found in repository
+- **409**: Business rule violations (delete with children)
+- **400**: Invalid request data or validation failures
+- **500**: Repository errors or unexpected failures
 
-## Error Handling
+## Repository Implementations
 
-- **404**: Node not found
-- **409**: Cannot delete node with children
-- **400**: Invalid request data
-- **500**: Internal server errors
+### Built-in Support
+- **InMemoryRepository**: Included for testing and development
+- **Firebase Firestore**: Real-time apps with offline support
+- **PocketBase**: Self-hosted applications  
+- **AWS DynamoDB**: Enterprise/cloud applications
 
-All errors return JSON with error message.
+### Custom Implementation
+Any class implementing `Repository<Node>` from kiss_repository can be used:
 
-## Testing
+```dart
+class CustomRepository implements Repository<Node> {
+  // Implement required methods
+}
 
-The `test_api.dart` script demonstrates:
-1. Creating root and child nodes
-2. Retrieving nodes by ID
-3. Querying children
-4. Tracing ancestry
-5. Spatial prefix queries
+final config = GraphApiConfiguration(repository: CustomRepository());
+```
 
-## Generated Code
+## Testing Architecture
 
-The implementation uses code generation for:
-- **JSON Serialization**: Models have automatic toJson/fromJson
-- **OpenAPI Client**: Generated from the YAML specification
-- **Type Safety**: All models are strongly typed
+### Test Structure
+- **Unit Tests**: Models, Repository, Service layers
+- **Integration Tests**: Full HTTP API endpoints  
+- **Test Helpers**: Utilities for consistent test data
+- **148 Tests**: Comprehensive coverage across all layers
 
-## Next Steps
+### Key Test Features
+- Repository-agnostic testing using InMemoryRepository
+- Business logic validation (deletion rules, trace functionality)
+- HTTP endpoint testing with real request/response cycles
+- Error condition testing for all failure modes
 
-To make this production-ready:
-1. Add proper database backend (PostgreSQL, MongoDB, etc.)
-2. Implement authentication/authorization
-3. Add comprehensive test suite
-4. Add Docker containerization
-5. Add metrics and monitoring
-6. Implement proper CORS handling
-7. Add API versioning
+## Code Generation
+
+### OpenAPI Models
+- Generated from `graph-node-api.yaml` specification
+- Automatic JSON serialization with `json_annotation`
+- Type-safe request/response models
+- Build integration with `build_runner`
+
+### Build Process
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## Production Considerations
+
+### Performance
+- In-memory repository for development/testing only
+- Production should use persistent storage (Firebase, PostgreSQL, etc.)
+- Streaming support for real-time updates available
+
+### Scalability
+- Repository pattern enables horizontal scaling
+- Stateless service layer supports load balancing
+- Hierarchical pathHash enables efficient spatial indexing
+
+### Security
+- Library provides business logic only
+- Authentication/authorization must be implemented separately
+- Input validation handled at service layer
+- Repository implementations handle data security

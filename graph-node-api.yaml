@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Graph Node Service
   version: 1.0.0
-  description: A microservice for managing graph-based nodes with spatial and path-based relationships.
+  description: A microservice for managing graph-based nodes with hierarchical path relationships and breadcrumb navigation.
 
 paths:
   /nodes:
@@ -41,7 +41,7 @@ paths:
         '404':
           description: Node not found
     patch:
-      summary: Update a node (content or spatialHash only)
+      summary: Update a node (content or pathHash only)
       parameters:
         - in: path
           name: id
@@ -113,9 +113,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/Node'
 
-  /nodes/spatial/{prefix}:
+  /nodes/path/{prefix}:
     get:
-      summary: Get nodes by spatialHash prefix
+      summary: Get nodes by pathHash prefix (breadcrumbs)
       parameters:
         - in: path
           name: prefix
@@ -144,19 +144,19 @@ components:
         previous:
           type: string
           nullable: true
-        spatialHash:
+        pathHash:
           type: string
         content:
           type: object
           additionalProperties: true
     NodeCreate:
       type: object
-      required: [previous, spatialHash, content]
+      required: [previous, content]
       properties:
         previous:
           type: string
           nullable: true
-        spatialHash:
+        pathHash:
           type: string
         content:
           type: object
@@ -164,7 +164,7 @@ components:
     NodeUpdate:
       type: object
       properties:
-        spatialHash:
+        pathHash:
           type: string
         content:
           type: object

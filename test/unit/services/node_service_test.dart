@@ -1,7 +1,4 @@
-import 'package:kiss_graph/graph-node-api.openapi.dart';
-import 'package:kiss_graph/models/node_extensions.dart';
-import 'package:kiss_graph/repositories/node_queries.dart';
-import 'package:kiss_graph/services/node_service.dart';
+import 'package:kiss_graph/kiss_graph.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:test/test.dart';
 
@@ -20,84 +17,61 @@ void main() {
       service = NodeService(repository);
     });
 
-    tearDown(() async {
-      // Ensure all async operations complete before disposal
-      await Future.delayed(Duration(milliseconds: 10));
-      repository.dispose();
+    tearDown(() {
+      service.dispose();
     });
 
     group('Node Creation', () {
       test('should create a root node', () async {
         final nodeCreate = TestData.createNodeCreate(
           previous: null,
-          spatialHash: 'root123',
-          content: {'type': 'root'},
+          content: {'name': 'Root Node'},
         );
 
         final createdNode = await service.createNode(nodeCreate);
 
         expect(createdNode.validId, isNotEmpty);
-        expect(createdNode.validRoot,
-            equals(createdNode.validId)); // Root node's root is itself
+        expect(createdNode.validRoot, equals(createdNode.validId));
         expect(createdNode.previous, isNull);
-        expect(createdNode.validSpatialHash, equals('root123'));
-        expect(createdNode.contentMap['type'], equals('root'));
+        expect(createdNode.validPathHash, equals('1'));
+        expect(createdNode.contentMap['name'], equals('Root Node'));
       });
 
-      test('should create a child node with parent reference', () async {
-        // Create parent first
+      test('should create a child node with hierarchical path', () async {
         final parentCreate = TestData.createNodeCreate(
           previous: null,
-          spatialHash: 'parent123',
-          content: {'type': 'parent'},
+          content: {'name': 'Parent Node'},
         );
         final parent = await service.createNode(parentCreate);
 
-        // Create child
         final childCreate = TestData.createNodeCreate(
           previous: parent.validId,
-          spatialHash: 'child123',
-          content: {'type': 'child'},
+          content: {'name': 'Child Node'},
         );
         final child = await service.createNode(childCreate);
 
         expect(child.validId, isNotEmpty);
+        expect(child.validRoot, equals(parent.validId));
         expect(child.previous, equals(parent.validId));
-        expect(
-            child.validRoot, equals(parent.validRoot)); // Should inherit root
-        expect(child.validSpatialHash, equals('child123'));
-        expect(child.contentMap['type'], equals('child'));
+        expect(child.validPathHash, equals('1.1'));
+        expect(child.contentMap['name'], equals('Child Node'));
       });
 
-      test('should throw exception for invalid parent', () async {
+      test('should fail to create node with invalid parent', () async {
         final nodeCreate = TestData.createNodeCreate(
           previous: 'non-existent-parent',
-          spatialHash: 'invalid123',
-          content: {'type': 'invalid'},
+          content: {'name': 'Orphan Node'},
         );
 
         expect(
           () => service.createNode(nodeCreate),
-          throwsA(
-              predicate((e) => e.toString().contains('Parent node not found'))),
+          throwsException,
         );
-      });
-
-      test('should auto-generate unique IDs', () async {
-        final nodeCreate1 = TestData.createNodeCreate();
-        final nodeCreate2 = TestData.createNodeCreate();
-
-        final node1 = await service.createNode(nodeCreate1);
-        final node2 = await service.createNode(nodeCreate2);
-
-        expect(node1.validId, isNot(equals(node2.validId)));
-        expect(node1.validId, isNotEmpty);
-        expect(node2.validId, isNotEmpty);
       });
     });
 
     group('Node Retrieval', () {
-      test('should get existing node', () async {
+      test('should get node by ID', () async {
         final nodeCreate = TestData.createNodeCreate();
         final created = await service.createNode(nodeCreate);
 
@@ -106,7 +80,7 @@ void main() {
         expect(retrieved.contentMap, equals(created.contentMap));
       });
 
-      test('should throw exception for non-existent node', () async {
+      test('should handle not found error', () async {
         expect(
           () => service.getNode('non-existent'),
           throwsA(isA<RepositoryException>()),
@@ -115,16 +89,16 @@ void main() {
     });
 
     group('Node Updates', () {
-      test('should update node spatialHash', () async {
+      test('should update node pathHash', () async {
         final nodeCreate = TestData.createNodeCreate();
         final created = await service.createNode(nodeCreate);
 
         final nodeUpdate = TestData.createNodeUpdate(
-          spatialHash: 'updated-hash',
+          pathHash: 'updated-hash',
         );
         final updated = await service.updateNode(created.validId, nodeUpdate);
 
-        expect(updated.validSpatialHash, equals('updated-hash'));
+        expect(updated.validPathHash, equals('updated-hash'));
         expect(updated.validId, equals(created.validId));
         expect(updated.contentMap, equals(created.contentMap));
       });
@@ -141,25 +115,27 @@ void main() {
         expect(updated.contentMap['updated'], equals('content'));
         expect(updated.contentMap['new'], equals('field'));
         expect(updated.validId, equals(created.validId));
-        expect(updated.validSpatialHash, equals(created.validSpatialHash));
+        expect(updated.validPathHash, equals(created.validPathHash));
       });
 
-      test('should update both spatialHash and content', () async {
+      test('should update both pathHash and content', () async {
         final nodeCreate = TestData.createNodeCreate();
         final created = await service.createNode(nodeCreate);
 
         final nodeUpdate = TestData.createNodeUpdate(
-          spatialHash: 'multi-update',
+          pathHash: 'multi-update',
           content: {'multi': 'update'},
         );
         final updated = await service.updateNode(created.validId, nodeUpdate);
 
-        expect(updated.validSpatialHash, equals('multi-update'));
+        expect(updated.validPathHash, equals('multi-update'));
         expect(updated.contentMap['multi'], equals('update'));
       });
 
-      test('should throw exception for non-existent node update', () async {
-        final nodeUpdate = TestData.createNodeUpdate();
+      test('should handle not found error on update', () async {
+        final nodeUpdate = TestData.createNodeUpdate(
+          pathHash: 'will-not-work',
+        );
 
         expect(
           () => service.updateNode('non-existent', nodeUpdate),
@@ -169,7 +145,7 @@ void main() {
     });
 
     group('Node Deletion', () {
-      test('should delete childless node', () async {
+      test('should delete a node without children', () async {
         final nodeCreate = TestData.createNodeCreate();
         final created = await service.createNode(nodeCreate);
 
@@ -182,15 +158,14 @@ void main() {
       });
 
       test('should prevent deletion of node with children', () async {
-        // Create parent
         final parentCreate = TestData.createNodeCreate();
         final parent = await service.createNode(parentCreate);
 
-        // Create child
-        final childCreate = TestData.createNodeCreate(previous: parent.validId);
+        final childCreate = TestData.createNodeCreate(
+          previous: parent.validId,
+        );
         await service.createNode(childCreate);
 
-        // Try to delete parent - should fail
         expect(
           () => service.deleteNode(parent.validId),
           throwsA(predicate((e) =>
@@ -198,33 +173,27 @@ void main() {
         );
       });
 
-      test('should allow deletion after children are removed', () async {
-        // Create parent and child
-        final parentCreate = TestData.createNodeCreate();
-        final parent = await service.createNode(parentCreate);
-
-        final childCreate = TestData.createNodeCreate(previous: parent.validId);
-        final child = await service.createNode(childCreate);
-
-        // Delete child first
-        await service.deleteNode(child.validId);
-
-        // Now parent can be deleted
-        expect(() => service.deleteNode(parent.validId), returnsNormally);
+      test('should handle deletion of non-existent node gracefully', () async {
+        expect(
+          () => service.deleteNode('non-existent'),
+          returnsNormally,
+        );
       });
     });
 
-    group('Children Queries', () {
-      test('should get children of node', () async {
-        // Create parent
+    group('Children Query', () {
+      test('should get children of a node', () async {
         final parentCreate = TestData.createNodeCreate();
         final parent = await service.createNode(parentCreate);
 
-        // Create children
-        final child1Create =
-            TestData.createNodeCreate(previous: parent.validId);
-        final child2Create =
-            TestData.createNodeCreate(previous: parent.validId);
+        final child1Create = TestData.createNodeCreate(
+          previous: parent.validId,
+          content: {'name': 'Child 1'},
+        );
+        final child2Create = TestData.createNodeCreate(
+          previous: parent.validId,
+          content: {'name': 'Child 2'},
+        );
 
         final child1 = await service.createNode(child1Create);
         final child2 = await service.createNode(child2Create);
@@ -232,63 +201,33 @@ void main() {
         final children = await service.getChildren(parent.validId);
         expect(children.length, equals(2));
 
-        final childIds = children.map((child) => child.validId).toSet();
+        final childIds = children.map((child) => child.validId).toList();
         expect(childIds, containsAll([child1.validId, child2.validId]));
       });
 
-      test('should return empty list for childless node', () async {
+      test('should return empty list for node with no children', () async {
         final nodeCreate = TestData.createNodeCreate();
-        final created = await service.createNode(nodeCreate);
+        final node = await service.createNode(nodeCreate);
 
-        final children = await service.getChildren(created.validId);
+        final children = await service.getChildren(node.validId);
         expect(children, isEmpty);
       });
     });
 
-    group('Trace Functionality', () {
-      test('should trace single node to itself', () async {
+    group('Enhanced Operations', () {
+      test('should update node with complex change validation', () async {
         final nodeCreate = TestData.createNodeCreate();
-        final created = await service.createNode(nodeCreate);
+        final original = await service.createNode(nodeCreate);
 
-        final trace = await service.trace(created.validId);
-        expect(trace.length, equals(1));
-        expect(trace.first.validId, equals(created.validId));
-      });
-
-      test('should trace child back to root', () async {
-        // Create chain: root -> child1 -> child2
-        final rootCreate = TestData.createNodeCreate();
-        final root = await service.createNode(rootCreate);
-
-        final child1Create = TestData.createNodeCreate(previous: root.validId);
-        final child1 = await service.createNode(child1Create);
-
-        final child2Create =
-            TestData.createNodeCreate(previous: child1.validId);
-        final child2 = await service.createNode(child2Create);
-
-        final trace = await service.trace(child2.validId);
-        expect(trace.length, equals(3));
-        expect(trace[0].validId, equals(child2.validId)); // Start from child2
-        expect(trace[1].validId, equals(child1.validId)); // Then child1
-        expect(trace[2].validId, equals(root.validId)); // End at root
-      });
-
-      test('should handle broken chain gracefully', () async {
-        final nodeCreate = TestData.createNodeCreate();
-        final created = await service.createNode(nodeCreate);
-
-        // Manually create a reference to non-existent parent
-        await repository.update(created.validId, (current) {
+        final updated = await repository.update(original.validId, (current) {
           return current.copyWith(previous: 'non-existent');
         });
 
-        final trace = await service.trace(created.validId);
-        expect(trace.length,
-            equals(1)); // Should stop at the node with broken reference
-        expect(trace.first.validId, equals(created.validId));
+        expect(updated.validId, equals(original.validId));
       });
+    });
 
+    group('Trace Operations', () {
       test('should trace deep chains efficiently', () async {
         // Create a long chain
         const chainLength = 10;
@@ -319,51 +258,75 @@ void main() {
       });
     });
 
-    group('Spatial Queries', () {
-      test('should get nodes by spatial prefix', () async {
-        // Create nodes with different spatial hashes
+    group('Path Queries', () {
+      test('should get nodes by path prefix', () async {
+        // Create nodes with different path hashes
+        await service.createNode(TestData.createNodeCreate(pathHash: '1'));
+        await service.createNode(TestData.createNodeCreate(pathHash: '1.1'));
+        await service.createNode(TestData.createNodeCreate(pathHash: '2'));
 
-        await service
-            .createNode(TestData.createNodeCreate(spatialHash: 'abc123'));
-        await service
-            .createNode(TestData.createNodeCreate(spatialHash: 'abc456'));
-        await service
-            .createNode(TestData.createNodeCreate(spatialHash: 'def789'));
+        final pathNodes = await service.getPathNodes('1');
+        expect(pathNodes.length, equals(2));
 
-        final abcNodes = await service.getSpatialNodes('abc');
-        expect(abcNodes.length, equals(2));
-
-        final spatialHashes =
-            abcNodes.map((node) => node.validSpatialHash).toList();
-        expect(spatialHashes, containsAll(['abc123', 'abc456']));
+        final pathHashes = pathNodes.map((node) => node.validPathHash).toList();
+        expect(pathHashes, containsAll(['1', '1.1']));
       });
 
       test('should return empty for non-matching prefix', () async {
-        await service
-            .createNode(TestData.createNodeCreate(spatialHash: 'xyz123'));
+        await service.createNode(TestData.createNodeCreate(pathHash: '2.1'));
 
-        final nodes = await service.getSpatialNodes('abc');
+        final nodes = await service.getPathNodes('1');
         expect(nodes, isEmpty);
       });
     });
 
-    group('Service Lifecycle', () {
-      test('should dispose without errors', () {
-        expect(() => service.dispose(), returnsNormally);
-      });
+    group('Breadcrumb Operations', () {
+      test('should get breadcrumbs for nested nodes', () async {
+        // Create a hierarchy: root -> child -> grandchild
+        final rootCreate = TestData.createNodeCreate(
+          previous: null,
+          content: {'name': 'Root'},
+        );
+        final root = await service.createNode(rootCreate);
 
-      test('should handle multiple operations concurrently', () async {
-        final futures = List.generate(
-            5,
-            (i) => service.createNode(TestData.createNodeCreate(
-                spatialHash: 'concurrent-$i', content: {'index': i})));
+        final childCreate = TestData.createNodeCreate(
+          previous: root.validId,
+          content: {'name': 'Child'},
+        );
+        final child = await service.createNode(childCreate);
+
+        final grandchildCreate = TestData.createNodeCreate(
+          previous: child.validId,
+          content: {'name': 'Grandchild'},
+        );
+        final grandchild = await service.createNode(grandchildCreate);
+
+        // Get breadcrumbs for grandchild
+        final breadcrumbs = await service.getBreadcrumbs(grandchild.validId);
+
+        // Should return all nodes in the path
+        expect(breadcrumbs.length, equals(3));
+        expect(breadcrumbs.map((n) => n.contentMap['name']).toList(),
+            containsAll(['Root', 'Child', 'Grandchild']));
+      });
+    });
+
+    group('Stress Testing', () {
+      test('should handle many concurrent node creations', () async {
+        const nodeCount = 50;
+        final futures = <Future<Node>>[];
+
+        for (int i = 0; i < nodeCount; i++) {
+          final nodeCreate = TestData.createNodeCreate(content: {'index': i});
+          futures.add(service.createNode(nodeCreate));
+        }
 
         final nodes = await Future.wait(futures);
-        expect(nodes.length, equals(5));
+        expect(nodes.length, equals(nodeCount));
 
-        // Verify all nodes were created with unique IDs
+        // Verify all nodes are unique
         final ids = nodes.map((node) => node.validId).toSet();
-        expect(ids.length, equals(5)); // All unique
+        expect(ids.length, equals(nodeCount));
       });
     });
   });

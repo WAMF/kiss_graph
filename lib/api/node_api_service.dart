@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
-import '../graph-node-api.openapi.dart';
 import '../services/node_service.dart';
+import 'graph-node-api.openapi.dart';
 
-class NodeController {
+class NodeApiService {
   final NodeService _nodeService;
 
-  NodeController(this._nodeService);
+  NodeApiService(this._nodeService);
 
   void setupRoutes(RouterPlus app) {
     app.post('/nodes', _createNode);
@@ -18,7 +18,8 @@ class NodeController {
     app.delete('/nodes/<id>', _deleteNode);
     app.get('/nodes/<id>/children', _getChildren);
     app.get('/nodes/<id>/trace', _trace);
-    app.get('/nodes/spatial/<prefix>', _getSpatialNodes);
+    app.get('/nodes/<id>/breadcrumbs', _getBreadcrumbs);
+    app.get('/nodes/path/<prefix>', _getPathNodes);
   }
 
   Future<Response> _createNode(Request request) async {
@@ -84,12 +85,10 @@ class NodeController {
 
       return Response(204);
     } catch (e) {
-      // Check for specific business rule violations first
       if (e.toString().contains('Cannot delete node with children')) {
         return _errorResponse(409, 'Cannot delete node with children');
       }
 
-      // Then handle repository exceptions
       if (e is RepositoryException) {
         if (e.code == RepositoryErrorCode.notFound) {
           return _errorResponse(404, 'Node not found');
@@ -97,7 +96,6 @@ class NodeController {
         return _errorResponse(500, e.message);
       }
 
-      // Handle any other exceptions
       return _errorResponse(500, e.toString());
     }
   }
@@ -130,13 +128,27 @@ class NodeController {
     }
   }
 
-  Future<Response> _getSpatialNodes(Request request) async {
+  Future<Response> _getPathNodes(Request request) async {
     try {
       final prefix = request.params['prefix']!;
-      final nodes = await _nodeService.getSpatialNodes(prefix);
+      final nodes = await _nodeService.getPathNodes(prefix);
 
       return Response.ok(
         jsonEncode(nodes.map((node) => node.toJson()).toList()),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, e.toString());
+    }
+  }
+
+  Future<Response> _getBreadcrumbs(Request request) async {
+    try {
+      final id = request.params['id']!;
+      final breadcrumbs = await _nodeService.getBreadcrumbs(id);
+
+      return Response.ok(
+        jsonEncode(breadcrumbs.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
