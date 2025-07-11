@@ -1,0 +1,12 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - "lib/api/graph-node-api.openapi.dart"
+    - "lib/api/graph-node-api.openapi.g.dart"
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    # Add any custom rule overrides here if needed 

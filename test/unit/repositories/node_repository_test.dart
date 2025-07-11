@@ -91,7 +91,7 @@ void main() {
 
         expect(addedNodes.length, equals(3));
 
-        for (int i = 0; i < nodes.length; i++) {
+        for (var i = 0; i < nodes.length; i++) {
           final original = nodes[i];
           final added = addedNodes[i];
           expect(added.validId, equals(original.validId));
@@ -165,7 +165,7 @@ void main() {
 
       test('should handle non-existent parent', () async {
         final children =
-            await repository.query(query: NodeChildrenQuery('non-existent'));
+            await repository.query(query: const NodeChildrenQuery('non-existent'));
         expect(children, isEmpty);
       });
     });
@@ -179,7 +179,7 @@ void main() {
           await repository.add(IdentifiedObject(node.validId, node));
         }
 
-        final pathNodes1 = await repository.query(query: NodePathQuery('1'));
+        final pathNodes1 = await repository.query(query: const NodePathQuery('1'));
         expect(pathNodes1.length, equals(2));
 
         final pathHashes =
@@ -192,7 +192,7 @@ void main() {
         node.validate();
         await repository.add(IdentifiedObject(node.validId, node));
 
-        final path1Nodes = await repository.query(query: NodePathQuery('1'));
+        final path1Nodes = await repository.query(query: const NodePathQuery('1'));
         expect(path1Nodes, isEmpty);
       });
 
@@ -201,7 +201,7 @@ void main() {
         node.validate();
         await repository.add(IdentifiedObject(node.validId, node));
 
-        final exactNodes = await repository.query(query: NodePathQuery('1'));
+        final exactNodes = await repository.query(query: const NodePathQuery('1'));
         expect(exactNodes.length, equals(1));
         expect(exactNodes.first.validPathHash, equals('1'));
       });
@@ -283,7 +283,7 @@ void main() {
         // Delete operation on non-existent node may not throw in this implementation
         // Just test that it completes without crashing
         expect(
-          () async => await repository.delete('non-existent'),
+          () async => repository.delete('non-existent'),
           returnsNormally,
         );
       });
@@ -306,7 +306,7 @@ void main() {
         }
 
         // Test that children queries work correctly
-        for (int i = 0; i < chainNodes.length - 1; i++) {
+        for (var i = 0; i < chainNodes.length - 1; i++) {
           final parent = chainNodes[i];
           final children =
               await repository.query(query: NodeChildrenQuery(parent.validId));
@@ -327,7 +327,7 @@ void main() {
         }
 
         // Test path query
-        final pathNodes1 = await repository.query(query: NodePathQuery('1'));
+        final pathNodes1 = await repository.query(query: const NodePathQuery('1'));
         expect(pathNodes1.length, equals(2));
 
         // Test that path nodes are also in root queries

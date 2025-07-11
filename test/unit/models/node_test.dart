@@ -25,7 +25,6 @@ void main() {
         final node = NodeExtensions.create(
           id: 'test-id',
           root: 'test-root',
-          previous: null,
           pathHash: 'test-hash',
           content: {'data': 'test'},
         );
@@ -200,27 +199,22 @@ void main() {
     group('Node Validation', () {
       test('should validate complete node', () {
         final node = TestData.createRootNode();
-        expect(() => node.validate(), returnsNormally);
+        expect(node.validate, returnsNormally);
       });
 
       test('should throw on invalid node (null ID)', () {
-        final node = Node(
-            id: null,
+        const node = Node(
             root: 'root',
-            previous: null,
-            pathHash: 'hash',
-            content: null);
-        expect(() => node.validate(), throwsArgumentError);
+            pathHash: 'hash');
+        expect(node.validate, throwsArgumentError);
       });
 
       test('should throw on invalid node (empty pathHash)', () {
-        final node = Node(
+        const node = Node(
             id: 'id',
             root: 'root',
-            previous: null,
-            pathHash: '',
-            content: null);
-        expect(() => node.validate(), throwsArgumentError);
+            pathHash: '');
+        expect(node.validate, throwsArgumentError);
       });
     });
   });
@@ -240,7 +234,6 @@ void main() {
 
     test('should create NodeCreate with null previous (root)', () {
       final nodeCreate = NodeCreateExtensions.create(
-        previous: null,
         pathHash: 'root-hash',
         content: {'root': 'data'},
       );
@@ -260,7 +253,7 @@ void main() {
 
     test('should handle null pathHash in NodeCreate serialization', () {
       final nodeCreate = NodeCreateExtensions.create(
-          pathHash: null, content: {'test': 'data'});
+          content: {'test': 'data'});
       final json = nodeCreate.toJson();
       final deserialized = NodeCreate.fromJson(json);
 
@@ -273,7 +266,6 @@ void main() {
     test('should create NodeUpdate with partial fields', () {
       final nodeUpdate = NodeUpdateExtensions.create(
         pathHash: 'updated-hash',
-        content: null,
       );
 
       expect(nodeUpdate.pathHash, equals('updated-hash'));
@@ -282,7 +274,6 @@ void main() {
 
     test('should create NodeUpdate with only content', () {
       final nodeUpdate = NodeUpdateExtensions.create(
-        pathHash: null,
         content: {'updated': 'content'},
       );
 
@@ -304,7 +295,7 @@ void main() {
 
     test('should handle null fields in NodeUpdate serialization', () {
       final nodeUpdate =
-          NodeUpdateExtensions.create(pathHash: null, content: null);
+          NodeUpdateExtensions.create();
       final json = nodeUpdate.toJson();
       final deserialized = NodeUpdate.fromJson(json);
 

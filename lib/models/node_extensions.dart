@@ -1,4 +1,4 @@
-import '../api/graph-node-api.openapi.dart';
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 
 /// Extensions for OpenAPI Node model to add business logic capabilities
 extension NodeExtensions on Node {
@@ -75,9 +75,7 @@ extension NodeExtensions on Node {
   static Node create({
     required String id,
     required String root,
-    String? previous,
-    required String pathHash,
-    required Map<String, dynamic> content,
+    required String pathHash, required Map<String, dynamic> content, String? previous,
   }) {
     final nodeContent = NodeContent();
     content.forEach((key, value) {
@@ -139,9 +137,8 @@ extension NodeCreateExtensions on NodeCreate {
 
   /// Create NodeCreate from basic parameters
   static NodeCreate create({
-    String? previous,
+    required Map<String, dynamic> content, String? previous,
     String? pathHash,
-    required Map<String, dynamic> content,
   }) {
     final nodeCreate = NodeCreate(
       previous: previous ?? '',
@@ -252,7 +249,7 @@ class PathHashGenerator {
     final parts = path.split('.');
     final ancestors = <String>[];
 
-    for (int i = 1; i <= parts.length; i++) {
+    for (var i = 1; i <= parts.length; i++) {
       ancestors.add(parts.take(i).join('.'));
     }
 

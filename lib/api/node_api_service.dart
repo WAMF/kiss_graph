@@ -1,15 +1,13 @@
 import 'dart:convert';
 
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
+import 'package:kiss_graph/services/node_service.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
-import '../services/node_service.dart';
-import 'graph-node-api.openapi.dart';
-
 class NodeApiService {
-  final NodeService _nodeService;
-
   NodeApiService(this._nodeService);
+  final NodeService _nodeService;
 
   void setupRoutes(RouterPlus app) {
     app.post('/nodes', _createNode);
@@ -25,7 +23,7 @@ class NodeApiService {
   Future<Response> _createNode(Request request) async {
     try {
       final bodyJson = await request.body.asJson;
-      final nodeCreate = NodeCreate.fromJson(bodyJson);
+      final nodeCreate = NodeCreate.fromJson(bodyJson as Map<String, dynamic>);
       final node = await _nodeService.createNode(nodeCreate);
 
       return Response(
@@ -61,7 +59,7 @@ class NodeApiService {
     try {
       final id = request.params['id']!;
       final bodyJson = await request.body.asJson;
-      final nodeUpdate = NodeUpdate.fromJson(bodyJson);
+      final nodeUpdate = NodeUpdate.fromJson(bodyJson as Map<String, dynamic>);
       final node = await _nodeService.updateNode(id, nodeUpdate);
 
       return Response.ok(

@@ -12,16 +12,13 @@ class TestData {
     return NodeExtensions.create(
       id: nodeId,
       root: nodeId,
-      previous: null,
       pathHash: pathHash ?? '1',
       content: content ?? {'name': 'Root Node', 'type': 'root'},
     );
   }
 
   static Node createChildNode({
-    String? id,
-    required String parentId,
-    required String rootId,
+    required String parentId, required String rootId, String? id,
     String? pathHash,
     Map<String, dynamic>? content,
   }) {
@@ -60,10 +57,10 @@ class TestData {
   static List<Node> createNodeChain(int length) {
     final nodes = <Node>[];
 
-    for (int i = 0; i < length; i++) {
+    for (var i = 0; i < length; i++) {
       final id = 'node-$i';
       final previous = i == 0 ? null : 'node-${i - 1}';
-      final root = 'node-0';
+      const root = 'node-0';
 
       nodes.add(NodeExtensions.create(
         id: id,
@@ -83,21 +80,18 @@ class TestData {
       NodeExtensions.create(
         id: 'path-1',
         root: 'path-1',
-        previous: null,
         pathHash: '1',
         content: {'region': 'North'},
       ),
       NodeExtensions.create(
         id: 'path-2',
         root: 'path-2',
-        previous: null,
         pathHash: '1.1',
         content: {'region': 'North-East'},
       ),
       NodeExtensions.create(
         id: 'path-3',
         root: 'path-3',
-        previous: null,
         pathHash: '2',
         content: {'region': 'South'},
       ),
@@ -119,7 +113,7 @@ class TestHelpers {
   static void validateChain(List<Node> nodes) {
     assert(nodes.isNotEmpty, 'Chain should not be empty');
 
-    for (int i = 0; i < nodes.length; i++) {
+    for (var i = 0; i < nodes.length; i++) {
       final node = nodes[i];
 
       if (i == 0) {

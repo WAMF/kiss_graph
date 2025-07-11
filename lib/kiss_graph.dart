@@ -18,7 +18,7 @@
 ///
 /// nodeApiService.setupRoutes(app);
 /// ```
-library kiss_graph;
+library;
 
 export 'api/graph-node-api.openapi.dart';
 export 'api/graph_api_configuration.dart';

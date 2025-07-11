@@ -1,21 +1,20 @@
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
+import 'package:kiss_graph/models/node_extensions.dart';
+import 'package:kiss_graph/repositories/node_queries.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:uuid/uuid.dart';
 
-import '../api/graph-node-api.openapi.dart';
-import '../models/node_extensions.dart';
-import '../repositories/node_queries.dart';
-
 class NodeService {
-  final Repository<Node> _repository;
-  final Uuid _uuid = const Uuid();
 
   NodeService(this._repository);
+  final Repository<Node> _repository;
+  final Uuid _uuid = const Uuid();
 
   Future<Node> createNode(NodeCreate nodeCreate) async {
     nodeCreate.validate();
 
-    String id = _uuid.v4();
-    String rootId = id;
+    final id = _uuid.v4();
+    var rootId = id;
     String pathHash;
 
     final previousId = nodeCreate.validPrevious;
@@ -44,15 +43,15 @@ class NodeService {
     );
 
     node.validate();
-    return await _repository.add(IdentifiedObject(node.validId, node));
+    return _repository.add(IdentifiedObject(node.validId, node));
   }
 
   Future<Node> getNode(String id) async {
-    return await _repository.get(id);
+    return _repository.get(id);
   }
 
   Future<Node> updateNode(String id, NodeUpdate nodeUpdate) async {
-    return await _repository.update(id, (current) {
+    return _repository.update(id, (current) {
       return current.copyWith(
         pathHash: nodeUpdate.pathHash ?? current.pathHash,
         content: nodeUpdate.content?.toMap() ?? current.contentMap,
@@ -65,7 +64,6 @@ class NodeService {
     if (children.isNotEmpty) {
       throw RepositoryException(
         message: 'Cannot delete node with children',
-        code: RepositoryErrorCode.unknown,
       );
     }
 
@@ -73,11 +71,11 @@ class NodeService {
   }
 
   Future<List<Node>> getChildren(String id) async {
-    return await _repository.query(query: NodeChildrenQuery(id));
+    return _repository.query(query: NodeChildrenQuery(id));
   }
 
   Future<List<Node>> trace(String nodeId) async {
-    final List<Node> path = [];
+    final path = <Node>[];
     String? currentId = nodeId;
 
     while (currentId != null) {
@@ -99,7 +97,7 @@ class NodeService {
   }
 
   Future<List<Node>> getPathNodes(String pathPrefix) async {
-    return await _repository.query(query: NodePathQuery(pathPrefix));
+    return _repository.query(query: NodePathQuery(pathPrefix));
   }
 
   /// Get all nodes in the breadcrumb path for a given node
@@ -128,11 +126,11 @@ class NodeService {
   }
 
   Future<List<Node>> getNodesByRoot(String rootId) async {
-    return await _repository.query(query: NodeRootQuery(rootId));
+    return _repository.query(query: NodeRootQuery(rootId));
   }
 
   Future<List<Node>> getAllNodes() async {
-    return await _repository.query();
+    return _repository.query();
   }
 
   void dispose() {

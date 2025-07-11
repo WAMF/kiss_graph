@@ -1,10 +1,9 @@
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
+import 'package:kiss_graph/api/node_api_service.dart';
+import 'package:kiss_graph/repositories/node_queries.dart';
+import 'package:kiss_graph/services/node_service.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:shelf_plus/shelf_plus.dart';
-
-import '../repositories/node_queries.dart';
-import '../services/node_service.dart';
-import 'graph-node-api.openapi.dart';
-import 'node_api_service.dart';
 
 /// Configuration class for the KISS Graph library.
 ///
@@ -25,9 +24,6 @@ import 'node_api_service.dart';
 /// final apiService = config.createApiService();
 /// ```
 class GraphApiConfiguration {
-  final Repository<Node> _repository;
-  late final NodeService _nodeService;
-  late final NodeApiService _nodeApiService;
 
   /// Create a configuration with a custom repository.
   GraphApiConfiguration({required Repository<Node> repository})
@@ -47,6 +43,9 @@ class GraphApiConfiguration {
     );
     return GraphApiConfiguration(repository: repository);
   }
+  final Repository<Node> _repository;
+  late final NodeService _nodeService;
+  late final NodeApiService _nodeApiService;
 
   /// Get the configured repository instance.
   Repository<Node> get repository => _repository;

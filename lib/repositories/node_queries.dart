@@ -1,11 +1,10 @@
+import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 
-import '../api/graph-node-api.openapi.dart';
-
 class NodeChildrenQuery extends Query {
-  final String parentId;
 
   const NodeChildrenQuery(this.parentId);
+  final String parentId;
 
   @override
   bool operator ==(Object other) {
@@ -18,9 +17,9 @@ class NodeChildrenQuery extends Query {
 }
 
 class NodePathQuery extends Query {
-  final String pathPrefix;
 
   const NodePathQuery(this.pathPrefix);
+  final String pathPrefix;
 
   @override
   bool operator ==(Object other) {
@@ -33,9 +32,9 @@ class NodePathQuery extends Query {
 }
 
 class NodeRootQuery extends Query {
-  final String rootId;
 
   const NodeRootQuery(this.rootId);
+  final String rootId;
 
   @override
   bool operator ==(Object other) {

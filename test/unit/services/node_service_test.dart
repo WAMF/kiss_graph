@@ -24,7 +24,6 @@ void main() {
     group('Node Creation', () {
       test('should create a root node', () async {
         final nodeCreate = TestData.createNodeCreate(
-          previous: null,
           content: {'name': 'Root Node'},
         );
 
@@ -39,7 +38,6 @@ void main() {
 
       test('should create a child node with hierarchical path', () async {
         final parentCreate = TestData.createNodeCreate(
-          previous: null,
           content: {'name': 'Parent Node'},
         );
         final parent = await service.createNode(parentCreate);
@@ -239,8 +237,8 @@ void main() {
         nodes.add(root);
 
         // Create chain
-        Node current = root;
-        for (int i = 1; i < chainLength; i++) {
+        var current = root;
+        for (var i = 1; i < chainLength; i++) {
           final childCreate =
               TestData.createNodeCreate(previous: current.validId);
           current = await service.createNode(childCreate);
@@ -252,7 +250,7 @@ void main() {
         expect(trace.length, equals(chainLength));
 
         // Verify order (should be reverse of creation)
-        for (int i = 0; i < chainLength; i++) {
+        for (var i = 0; i < chainLength; i++) {
           expect(trace[i].validId, equals(nodes[chainLength - 1 - i].validId));
         }
       });
@@ -284,7 +282,6 @@ void main() {
       test('should get breadcrumbs for nested nodes', () async {
         // Create a hierarchy: root -> child -> grandchild
         final rootCreate = TestData.createNodeCreate(
-          previous: null,
           content: {'name': 'Root'},
         );
         final root = await service.createNode(rootCreate);
@@ -316,7 +313,7 @@ void main() {
         const nodeCount = 50;
         final futures = <Future<Node>>[];
 
-        for (int i = 0; i < nodeCount; i++) {
+        for (var i = 0; i < nodeCount; i++) {
           final nodeCreate = TestData.createNodeCreate(content: {'index': i});
           futures.add(service.createNode(nodeCreate));
         }

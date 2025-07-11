@@ -27,21 +27,17 @@ Future<void> main(List<String> args) async {
     case 'generate':
     case 'gen':
       await _generateDocs();
-      break;
     case 'open':
     case 'o':
       await _openDocs();
-      break;
     case 'clean':
     case 'c':
       await _cleanDocs();
-      break;
     case 'help':
     case 'h':
     case '--help':
     case '-h':
       _showHelp();
-      break;
     default:
       print('❌ Unknown command: $command');
       print('');

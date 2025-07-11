@@ -97,7 +97,7 @@ Future<void> main(List<String> args) async {
 Future<void> _listGeneratedFiles(String outputDir) async {
   try {
     final dir = Directory(outputDir);
-    final files = await dir.list(recursive: false).toList();
+    final files = await dir.list().toList();
 
     for (final file in files) {
       final name = file.path.split('/').last;
