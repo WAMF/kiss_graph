@@ -1,5 +1,5 @@
 name: kiss_graph
-description: A reusable library for managing graph-based nodes with spatial queries and path tracing, featuring dependency injection support
+description: A reusable library for managing graph-based nodes with path tracing
 version: 0.2.0
 homepage: https://github.com/WAMF/kiss_graph
 repository: https://github.com/WAMF/kiss_graph
