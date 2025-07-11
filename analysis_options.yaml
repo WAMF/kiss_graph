@@ -9,4 +9,26 @@ analyzer:
 
 linter:
   rules:
-    # Add any custom rule overrides here if needed 
+    # Disable documentation requirements for faster development
+    public_member_api_docs: false
+    
+    # Disable line length limits - prefer readability over strict limits
+    lines_longer_than_80_chars: false
+    
+    # Disable print warnings for documentation tools
+    avoid_print: false
+    
+    # Disable dynamic call warnings for test code flexibility
+    avoid_dynamic_calls: false
+    
+    # Disable cascade warnings for forEach patterns
+    cascade_invocations: false
+    
+    # Disable catch clause warnings for generic error handling
+    avoid_catches_without_on_clauses: false
+    
+    # Disable async IO warnings for documentation tools
+    avoid_slow_async_io: false
+    
+    # Disable HTML in doc comments - allow angle brackets in documentation
+    unintended_html_in_doc_comment: false 

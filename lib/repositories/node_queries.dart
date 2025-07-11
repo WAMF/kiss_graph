@@ -1,8 +1,9 @@
 import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 import 'package:kiss_repository/kiss_repository.dart';
+import 'package:meta/meta.dart';
 
+@immutable
 class NodeChildrenQuery extends Query {
-
   const NodeChildrenQuery(this.parentId);
   final String parentId;
 
@@ -16,8 +17,8 @@ class NodeChildrenQuery extends Query {
   int get hashCode => parentId.hashCode;
 }
 
+@immutable
 class NodePathQuery extends Query {
-
   const NodePathQuery(this.pathPrefix);
   final String pathPrefix;
 
@@ -31,8 +32,8 @@ class NodePathQuery extends Query {
   int get hashCode => pathPrefix.hashCode;
 }
 
+@immutable
 class NodeRootQuery extends Query {
-
   const NodeRootQuery(this.rootId);
   final String rootId;
 

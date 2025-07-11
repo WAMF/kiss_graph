@@ -12,8 +12,8 @@ void main() {
     setUp(() {
       final router = Router().plus;
 
-      config = GraphApiConfiguration.withInMemoryRepository();
-      config.setupRoutes(router);
+      config = GraphApiConfiguration.withInMemoryRepository()
+        ..setupRoutes(router);
 
       app = router.call;
     });
@@ -105,7 +105,7 @@ void main() {
       final childrenBody = await childrenResponse.readAsString();
       final children = jsonDecode(childrenBody);
 
-      expect(children, isA<List>());
+      expect(children, isA<List<dynamic>>());
       expect(children.length, equals(1));
       expect(children[0]['id'], equals(child['id']));
     });
@@ -217,7 +217,7 @@ void main() {
       final traceBody = await traceResponse.readAsString();
       final trace = jsonDecode(traceBody);
 
-      expect(trace, isA<List>());
+      expect(trace, isA<List<dynamic>>());
       expect(trace.length, equals(2)); // child1 and root
       expect(trace[0]['id'], equals(child1['id'])); // First should be child1
       expect(trace[1]['id'], equals(root['id'])); // Second should be root
@@ -296,7 +296,7 @@ void main() {
       final pathBody = await pathResponse.readAsString();
       final pathNodes = jsonDecode(pathBody);
 
-      expect(pathNodes, isA<List>());
+      expect(pathNodes, isA<List<dynamic>>());
       expect(pathNodes.length, equals(3)); // Should get "1", "1.1", and "1.2"
 
       final pathHashes = pathNodes.map((node) => node['pathHash']).toList();
@@ -412,7 +412,7 @@ void main() {
       final breadcrumbsBody = await breadcrumbsResponse.readAsString();
       final breadcrumbs = jsonDecode(breadcrumbsBody);
 
-      expect(breadcrumbs, isA<List>());
+      expect(breadcrumbs, isA<List<dynamic>>());
       expect(breadcrumbs.length, equals(3)); // root, child, grandchild
 
       final names = breadcrumbs.map((node) => node['content']['name']).toList();

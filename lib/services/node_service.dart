@@ -5,7 +5,6 @@ import 'package:kiss_repository/kiss_repository.dart';
 import 'package:uuid/uuid.dart';
 
 class NodeService {
-
   NodeService(this._repository);
   final Repository<Node> _repository;
   final Uuid _uuid = const Uuid();
@@ -27,7 +26,7 @@ class NodeService {
         final siblingCount = await _getSiblingCount(previousId);
         pathHash =
             PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
-      } catch (e) {
+      } on RepositoryException {
         throw Exception('Parent node not found: $previousId');
       }
     } else {
@@ -46,10 +45,12 @@ class NodeService {
     return _repository.add(IdentifiedObject(node.validId, node));
   }
 
+  /// Retrieves a node by its unique ID
   Future<Node> getNode(String id) async {
     return _repository.get(id);
   }
 
+  /// Updates a node's pathHash or content
   Future<Node> updateNode(String id, NodeUpdate nodeUpdate) async {
     return _repository.update(id, (current) {
       return current.copyWith(
@@ -59,6 +60,7 @@ class NodeService {
     });
   }
 
+  /// Deletes a node if it has no children
   Future<void> deleteNode(String id) async {
     final children = await _repository.query(query: NodeChildrenQuery(id));
     if (children.isNotEmpty) {
@@ -70,10 +72,12 @@ class NodeService {
     await _repository.delete(id);
   }
 
+  /// Gets all direct children of a node
   Future<List<Node>> getChildren(String id) async {
     return _repository.query(query: NodeChildrenQuery(id));
   }
 
+  /// Traces the path from a node back to its root
   Future<List<Node>> trace(String nodeId) async {
     final path = <Node>[];
     String? currentId = nodeId;
@@ -96,6 +100,7 @@ class NodeService {
     return path;
   }
 
+  /// Gets all nodes with pathHash starting with the given prefix
   Future<List<Node>> getPathNodes(String pathPrefix) async {
     return _repository.query(query: NodePathQuery(pathPrefix));
   }

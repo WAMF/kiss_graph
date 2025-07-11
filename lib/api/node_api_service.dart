@@ -10,14 +10,15 @@ class NodeApiService {
   final NodeService _nodeService;
 
   void setupRoutes(RouterPlus app) {
-    app.post('/nodes', _createNode);
-    app.get('/nodes/<id>', _getNode);
-    app.patch('/nodes/<id>', _updateNode);
-    app.delete('/nodes/<id>', _deleteNode);
-    app.get('/nodes/<id>/children', _getChildren);
-    app.get('/nodes/<id>/trace', _trace);
-    app.get('/nodes/<id>/breadcrumbs', _getBreadcrumbs);
-    app.get('/nodes/path/<prefix>', _getPathNodes);
+    app
+      ..post('/nodes', _createNode)
+      ..get('/nodes/<id>', _getNode)
+      ..patch('/nodes/<id>', _updateNode)
+      ..delete('/nodes/<id>', _deleteNode)
+      ..get('/nodes/<id>/children', _getChildren)
+      ..get('/nodes/<id>/trace', _trace)
+      ..get('/nodes/<id>/breadcrumbs', _getBreadcrumbs)
+      ..get('/nodes/path/<prefix>', _getPathNodes);
   }
 
   Future<Response> _createNode(Request request) async {
@@ -31,7 +32,7 @@ class NodeApiService {
         body: jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(400, e.toString());
     }
   }
@@ -50,7 +51,7 @@ class NodeApiService {
         return _errorResponse(404, 'Node not found');
       }
       return _errorResponse(500, e.message);
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
@@ -71,7 +72,7 @@ class NodeApiService {
         return _errorResponse(404, 'Node not found');
       }
       return _errorResponse(500, e.message);
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
@@ -107,7 +108,7 @@ class NodeApiService {
         jsonEncode(children.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
@@ -121,7 +122,7 @@ class NodeApiService {
         jsonEncode(path.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
@@ -135,7 +136,7 @@ class NodeApiService {
         jsonEncode(nodes.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
@@ -149,7 +150,7 @@ class NodeApiService {
         jsonEncode(breadcrumbs.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return _errorResponse(500, e.toString());
     }
   }
