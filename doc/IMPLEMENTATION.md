@@ -73,7 +73,6 @@ doc/
 | DELETE | `/nodes/{id}` | Delete node (fails if has children) |
 | GET | `/nodes/{id}/children` | Get direct children |
 | GET | `/nodes/{id}/trace` | Trace path to root |
-| GET | `/nodes/{id}/breadcrumbs` | Get breadcrumb path |
 | GET | `/nodes/path/{prefix}` | Query by pathHash prefix |
 
 ## Node Data Model
