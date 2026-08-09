@@ -22,20 +22,25 @@ class NodeService {
 
     final previousId = nodeCreate.validPrevious;
     if (previousId != null) {
+      final Node parentNode;
       try {
-        final parentNode = await _repository.get(previousId);
-        rootId = parentNode.validRoot;
-
-        final parentPath = parentNode.validPathHash;
-        final siblingCount = await _getSiblingCount(previousId);
-        pathHash =
-            PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
-      } on RepositoryException {
+        parentNode = await _repository.get(previousId);
+      } on RepositoryException catch (e) {
+        if (e.code != RepositoryErrorCode.notFound) {
+          rethrow;
+        }
         throw RepositoryException(
           message: 'Parent node not found: $previousId',
           code: RepositoryErrorCode.notFound,
         );
       }
+
+      rootId = parentNode.validRoot;
+
+      final parentPath = parentNode.validPathHash;
+      final siblingCount = await _getSiblingCount(previousId);
+      pathHash =
+          PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
     } else {
       pathHash = nodeCreate.pathHash ?? PathHashGenerator.generateRootPath();
     }

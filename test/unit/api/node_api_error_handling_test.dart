@@ -75,6 +75,32 @@ class _FailingRepository implements Repository<Node> {
   void dispose() {}
 }
 
+/// A working store where exactly one read fails with [error].
+///
+/// `createNode` reads the parent twice: once with [get] to find its root and
+/// path, and once with [query] to count its siblings. Either read can fail for
+/// a reason that is not "the parent is absent", so each is covered separately.
+class _StoreWithOneFailingRead extends InMemoryRepository<Node> {
+  _StoreWithOneFailingRead({
+    required this.error,
+    this.failGet = false,
+    this.failQuery = false,
+  }) : super(queryBuilder: NodeQueryBuilder(), path: 'nodes');
+
+  final Object error;
+  final bool failGet;
+  final bool failQuery;
+
+  Never _fail() => Error.throwWithStackTrace(error, StackTrace.current);
+
+  @override
+  Future<Node> get(String id) async => failGet ? _fail() : super.get(id);
+
+  @override
+  Future<List<Node>> query({Query query = const AllQuery()}) async =>
+      failQuery ? _fail() : super.query(query: query);
+}
+
 /// Collects what the API sends to its server-side error sink.
 class _ErrorRecorder {
   final List<Object> errors = <Object>[];
@@ -249,6 +275,76 @@ void main() {
         expect(response.statusCode, equals(400));
         expect(jsonDecode(body), equals({'error': 'Parent node not found'}));
         expect(body, isNot(contains('no-such-parent-id')));
+      });
+
+      Request createWithParent(String parentId) => Request(
+            'POST',
+            Uri.parse('http://localhost:8080/nodes'),
+            body: jsonEncode({
+              'previous': parentId,
+              'content': {'name': 'x'}
+            }),
+            headers: {'Content-Type': 'application/json'},
+          );
+
+      test('a parent read that fails to connect answers 500, not 400',
+          () async {
+        final app = appWithRepository(
+          _StoreWithOneFailingRead(
+            error: RepositoryException(message: 'connect failed: $_secret'),
+            failGet: true,
+          ),
+        );
+
+        final response = await app(createWithParent('existing-parent'));
+        final body = await response.readAsString();
+
+        expect(response.statusCode, equals(500));
+        expect(
+          jsonDecode(body),
+          equals({'error': NodeApiService.internalErrorMessage}),
+        );
+        expect(body, isNot(contains(_secret)));
+        expect(body, isNot(contains('existing-parent')));
+        expect(recorder.operations, equals(['createNode']));
+        expect(recorder.errors.single.toString(), contains(_secret));
+      });
+
+      test('a sibling count that fails to connect answers 500, not 400',
+          () async {
+        final app = appWithRepository(
+          _StoreWithOneFailingRead(
+            error: RepositoryException(message: 'connect failed: $_secret'),
+            failQuery: true,
+          ),
+        );
+
+        final created = await app(
+          Request(
+            'POST',
+            Uri.parse('http://localhost:8080/nodes'),
+            body: jsonEncode({
+              'previous': '',
+              'content': {'name': 'parent'}
+            }),
+            headers: {'Content-Type': 'application/json'},
+          ),
+        );
+        expect(created.statusCode, equals(201));
+        final parentId =
+            (jsonDecode(await created.readAsString()) as Map)['id'] as String;
+
+        final response = await app(createWithParent(parentId));
+        final body = await response.readAsString();
+
+        expect(response.statusCode, equals(500));
+        expect(
+          jsonDecode(body),
+          equals({'error': NodeApiService.internalErrorMessage}),
+        );
+        expect(body, isNot(contains(_secret)));
+        expect(recorder.operations, equals(['createNode']));
+        expect(recorder.errors.single.toString(), contains(_secret));
       });
 
       test('a missing node still answers 404 with a fixed message', () async {
