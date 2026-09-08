@@ -26,22 +26,31 @@ import 'package:shelf_plus/shelf_plus.dart';
 class GraphApiConfiguration {
 
   /// Create a configuration with a custom repository.
-  GraphApiConfiguration({required Repository<Node> repository})
-      : _repository = repository {
+  ///
+  /// [onError] receives the full detail of every failure the API handles.
+  /// That detail never reaches an HTTP response. It defaults to
+  /// `dart:developer` logging.
+  GraphApiConfiguration({
+    required Repository<Node> repository,
+    ApiErrorLogger? onError,
+  }) : _repository = repository {
     _nodeService = NodeService(_repository);
-    _nodeApiService = NodeApiService(_nodeService);
+    _nodeApiService = NodeApiService(_nodeService, onError: onError);
   }
 
   /// Create a configuration with an in-memory repository for testing/demos.
   ///
   /// This uses the default InMemoryRepository with NodeQueryBuilder
   /// which is suitable for development, testing, and demos.
-  factory GraphApiConfiguration.withInMemoryRepository({String? path}) {
+  factory GraphApiConfiguration.withInMemoryRepository({
+    String? path,
+    ApiErrorLogger? onError,
+  }) {
     final repository = InMemoryRepository<Node>(
       queryBuilder: NodeQueryBuilder(),
       path: path ?? 'nodes',
     );
-    return GraphApiConfiguration(repository: repository);
+    return GraphApiConfiguration(repository: repository, onError: onError);
   }
   final Repository<Node> _repository;
   late final NodeService _nodeService;

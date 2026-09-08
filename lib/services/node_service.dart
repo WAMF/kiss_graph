@@ -9,6 +9,10 @@ class NodeService {
   final Repository<Node> _repository;
   final Uuid _uuid = const Uuid();
 
+  /// Message of the [RepositoryException] that [deleteNode] throws when the
+  /// node still has children. The API layer maps it to HTTP 409.
+  static const String hasChildrenMessage = 'Cannot delete node with children';
+
   Future<Node> createNode(NodeCreate nodeCreate) async {
     nodeCreate.validate();
 
@@ -18,17 +22,25 @@ class NodeService {
 
     final previousId = nodeCreate.validPrevious;
     if (previousId != null) {
+      final Node parentNode;
       try {
-        final parentNode = await _repository.get(previousId);
-        rootId = parentNode.validRoot;
-
-        final parentPath = parentNode.validPathHash;
-        final siblingCount = await _getSiblingCount(previousId);
-        pathHash =
-            PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
-      } on RepositoryException {
-        throw Exception('Parent node not found: $previousId');
+        parentNode = await _repository.get(previousId);
+      } on RepositoryException catch (e) {
+        if (e.code != RepositoryErrorCode.notFound) {
+          rethrow;
+        }
+        throw RepositoryException(
+          message: 'Parent node not found: $previousId',
+          code: RepositoryErrorCode.notFound,
+        );
       }
+
+      rootId = parentNode.validRoot;
+
+      final parentPath = parentNode.validPathHash;
+      final siblingCount = await _getSiblingCount(previousId);
+      pathHash =
+          PathHashGenerator.generateChildPath(parentPath, siblingCount + 1);
     } else {
       pathHash = nodeCreate.pathHash ?? PathHashGenerator.generateRootPath();
     }
@@ -65,7 +77,7 @@ class NodeService {
     final children = await _repository.query(query: NodeChildrenQuery(id));
     if (children.isNotEmpty) {
       throw RepositoryException(
-        message: 'Cannot delete node with children',
+        message: hasChildrenMessage,
       );
     }
 

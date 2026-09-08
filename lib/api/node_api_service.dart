@@ -1,13 +1,50 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:kiss_graph/api/graph-node-api.openapi.dart';
 import 'package:kiss_graph/services/node_service.dart';
 import 'package:kiss_repository/kiss_repository.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
+/// Receives the full detail of a failure that the API handled.
+///
+/// The API never puts this detail in an HTTP response. Use this sink to
+/// record it server-side.
+typedef ApiErrorLogger = void Function(
+  Object error,
+  StackTrace stackTrace,
+  String operation,
+);
+
+void _logToDeveloper(Object error, StackTrace stackTrace, String operation) {
+  developer.log(
+    'kiss_graph: $operation failed',
+    name: 'kiss_graph',
+    error: error,
+    stackTrace: stackTrace,
+  );
+}
+
 class NodeApiService {
-  NodeApiService(this._nodeService);
+  /// Creates the API service.
+  ///
+  /// [onError] receives the full detail of every failure. It defaults to
+  /// `dart:developer` logging. The detail never reaches an HTTP response.
+  NodeApiService(this._nodeService, {ApiErrorLogger? onError})
+      : _onError = onError ?? _logToDeveloper;
+
   final NodeService _nodeService;
+  final ApiErrorLogger _onError;
+
+  /// The only message a client sees for a failure inside the server.
+  static const String internalErrorMessage = 'Internal server error';
+
+  /// The only message a client sees for a request body it sent wrongly.
+  static const String invalidRequestMessage = 'Invalid request body';
+
+  static const String _notFoundMessage = 'Node not found';
+  static const String _parentNotFoundMessage = 'Parent node not found';
+  static const String _hasChildrenMessage = NodeService.hasChildrenMessage;
 
   void setupRoutes(RouterPlus app) {
     app
@@ -31,8 +68,22 @@ class NodeApiService {
         body: jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on Exception catch (e) {
-      return _errorResponse(400, e.toString());
+    } catch (e, stackTrace) {
+      if (e is RepositoryException) {
+        if (e.code == RepositoryErrorCode.notFound) {
+          return _reportedResponse(
+              400, _parentNotFoundMessage, e, stackTrace, 'createNode');
+        }
+        return _internalError(e, stackTrace, 'createNode');
+      }
+      // A malformed body reaches us as ArgumentError (model validation),
+      // FormatException (JSON parsing) or TypeError (wrong JSON shape).
+      // These are all faults in what the client sent, so they answer 400.
+      if (e is ArgumentError || e is FormatException || e is TypeError) {
+        return _reportedResponse(
+            400, invalidRequestMessage, e, stackTrace, 'createNode');
+      }
+      return _internalError(e, stackTrace, 'createNode');
     }
   }
 
@@ -45,13 +96,13 @@ class NodeApiService {
         jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on RepositoryException catch (e) {
+    } on RepositoryException catch (e, stackTrace) {
       if (e.code == RepositoryErrorCode.notFound) {
-        return _errorResponse(404, 'Node not found');
+        return _errorResponse(404, _notFoundMessage);
       }
-      return _errorResponse(500, e.message);
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
+      return _internalError(e, stackTrace, 'getNode');
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'getNode');
     }
   }
 
@@ -66,13 +117,13 @@ class NodeApiService {
         jsonEncode(node.toJson()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on RepositoryException catch (e) {
+    } on RepositoryException catch (e, stackTrace) {
       if (e.code == RepositoryErrorCode.notFound) {
-        return _errorResponse(404, 'Node not found');
+        return _errorResponse(404, _notFoundMessage);
       }
-      return _errorResponse(500, e.message);
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
+      return _internalError(e, stackTrace, 'updateNode');
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'updateNode');
     }
   }
 
@@ -82,19 +133,16 @@ class NodeApiService {
       await _nodeService.deleteNode(id);
 
       return Response(204);
-    } catch (e) {
-      if (e.toString().contains('Cannot delete node with children')) {
-        return _errorResponse(409, 'Cannot delete node with children');
+    } on RepositoryException catch (e, stackTrace) {
+      if (e.message == _hasChildrenMessage) {
+        return _errorResponse(409, _hasChildrenMessage);
       }
-
-      if (e is RepositoryException) {
-        if (e.code == RepositoryErrorCode.notFound) {
-          return _errorResponse(404, 'Node not found');
-        }
-        return _errorResponse(500, e.message);
+      if (e.code == RepositoryErrorCode.notFound) {
+        return _errorResponse(404, _notFoundMessage);
       }
-
-      return _errorResponse(500, e.toString());
+      return _internalError(e, stackTrace, 'deleteNode');
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'deleteNode');
     }
   }
 
@@ -107,8 +155,8 @@ class NodeApiService {
         jsonEncode(children.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'getChildren');
     }
   }
 
@@ -121,8 +169,8 @@ class NodeApiService {
         jsonEncode(path.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'trace');
     }
   }
 
@@ -135,9 +183,32 @@ class NodeApiService {
         jsonEncode(nodes.map((node) => node.toJson()).toList()),
         headers: {'Content-Type': 'application/json'},
       );
-    } on Exception catch (e) {
-      return _errorResponse(500, e.toString());
+    } catch (e, stackTrace) {
+      return _internalError(e, stackTrace, 'getPathNodes');
     }
+  }
+
+  /// Reports [error] to the server-side sink and answers with [message].
+  ///
+  /// [message] is a constant. It never carries text taken from [error].
+  Response _reportedResponse(
+    int statusCode,
+    String message,
+    Object error,
+    StackTrace stackTrace,
+    String operation,
+  ) {
+    _onError(error, stackTrace, operation);
+    return _errorResponse(statusCode, message);
+  }
+
+  Response _internalError(
+    Object error,
+    StackTrace stackTrace,
+    String operation,
+  ) {
+    return _reportedResponse(
+        500, internalErrorMessage, error, stackTrace, operation);
   }
 
   Response _errorResponse(int statusCode, String message) {
